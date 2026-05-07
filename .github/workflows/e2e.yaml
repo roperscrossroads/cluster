@@ -1,0 +1,106 @@
+---
+name: "e2e"
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: ["main"]
+    paths-ignore:
+      - kubernetes/**
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-invalid:
+    if: ${{ github.repository == 'onedr0p/cluster-template' }}
+    name: reject-invalid (${{ matrix.fixture }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        fixture:
+          - overlapping-cidrs
+          - duplicate-gateway-addrs
+          - duplicate-node-names
+          - reserved-node-name
+          - bad-mac-address
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup mise
+        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        with:
+          cache: false
+
+      - name: Assert schema rejects ${{ matrix.fixture }}.toml
+        run: |
+          fixture=./.github/tests/invalid/${{ matrix.fixture }}.toml
+          schema=./template/resources/config.schema.cue
+          if cue export "$fixture" "$schema" --out yaml >/dev/null 2>&1; then
+            echo "::error::schema accepted invalid fixture ${{ matrix.fixture }} (expected rejection)"
+            exit 1
+          fi
+          echo "schema correctly rejected ${{ matrix.fixture }}"
+          # Also surface the actual error message in the log for debuggability.
+          cue export "$fixture" "$schema" --out yaml || true
+
+  validate-valid:
+    if: ${{ github.repository == 'onedr0p/cluster-template' }}
+    name: accept-valid (${{ matrix.fixture }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        fixture:
+          - public
+          - private
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup mise
+        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        with:
+          cache: false
+
+      - name: Run init recipe
+        run: just init
+
+      - name: Prepare files
+        run: |
+          cp ./.github/tests/valid/${{ matrix.fixture }}.toml cluster.toml
+          echo '{"AccountTag":"fake","TunnelSecret":"fake","TunnelID":"fake"}' > cloudflare-tunnel.json
+          touch kubeconfig
+
+      - name: Run configure recipe
+        run: just configure
+
+      - name: Run generate talconfig recipe
+        run: |
+          FILENAME=talos/talsecret.sops.yaml
+          talhelper gensecret | sops --filename-override $FILENAME --encrypt /dev/stdin > $FILENAME
+          just talos generate-config
+
+      - name: Run flux-local test
+        uses: docker://ghcr.io/allenporter/flux-local:v8.2.0@sha256:9c77739d8d7c71b808311693ea52d603d1ddb5190d3d4f23e47f6f33d5254602
+        with:
+          args: test --enable-helm --all-namespaces --path /github/workspace/kubernetes/flux/cluster -v
+
+      - name: Dry run bootstrap talos recipe
+        run: just --dry-run bootstrap talos
+
+      - name: Dry run bootstrap apps recipe
+        run: just --dry-run bootstrap apps
+
+      - name: Run reset recipe
+        run: yes | just template reset
+
+      - name: Run tidy recipe
+        run: yes | just template tidy
