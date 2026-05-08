@@ -1,0 +1,11 @@
+---
+# Public OCI charts published by the actions/actions-runner-controller project.
+# No auth required for pull.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: actions-runner-controller
+spec:
+  type: oci
+  interval: 1h
+  url: oci://ghcr.io/actions/actions-runner-controller-charts
