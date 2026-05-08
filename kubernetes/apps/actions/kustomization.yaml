@@ -10,3 +10,4 @@ resources:
   - ./namespace.yaml
   - ./arc-controller/ks.yaml
   - ./forgejo-runner/ks.yaml
+  - ./arc-runner-set-rxr-cluster/ks.yaml

@@ -1,0 +1,44 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: arc-runner-set-rxr-cluster
+spec:
+  chart:
+    spec:
+      chart: gha-runner-scale-set
+      version: 0.14.1
+      sourceRef:
+        kind: HelmRepository
+        name: actions-runner-controller
+        namespace: arc-systems
+  interval: 1h
+  values:
+    githubConfigUrl: "https://github.com/roperscrossroads/cluster"
+    githubConfigSecret: arc-runner-set-rxr-cluster-github
+    runnerScaleSetName: cluster-arc
+    minRunners: 0
+    maxRunners: 4
+
+    # Non-container-mode: jobs run directly on the runner pod (no separate
+    # workflow pod). Each runner pod is --ephemeral (chart-default), so
+    # one pod = one job, deleted on completion.
+    #
+    # Why not container-mode: bundled hooks (v0.7.0 in actions-runner:latest)
+    # mount work-PVC at /__e via subPath=externals, which kubelet silently
+    # drops on Talos overlayfs. We tried overriding via a hook-template
+    # ConfigMap (ACTIONS_RUNNER_CONTAINER_HOOK_TEMPLATE) but K8s pod-spec
+    # validation rejects duplicate mountPaths in a single container, and we
+    # can't remove the bundled mount through the merge logic. Sticking with
+    # non-container-mode aligns with how ARC is run on Talos in the wild
+    # (ref: oneuptime.com Talos runner guide). For workflows that need
+    # tooling beyond the actions-runner image, use a custom runner image
+    # (set runnerImage at the chart values level) or rely on actions to
+    # install what they need.
+    template:
+      spec:
+        serviceAccountName: arc-runner-set-rxr-cluster
+        containers:
+          - name: runner
+            image: ghcr.io/actions/actions-runner:latest
+            command: ["/home/runner/run.sh"]
