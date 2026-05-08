@@ -9,3 +9,4 @@ components:
 resources:
   - ./namespace.yaml
   - ./arc-controller/ks.yaml
+  - ./forgejo-runner/ks.yaml

@@ -1,0 +1,24 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: forgejo-runner
+spec:
+  healthChecks:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: forgejo-runner
+      namespace: actions
+  healthCheckExprs:
+    - apiVersion: apps/v1
+      kind: Deployment
+      failed: status.replicas != status.updatedReplicas
+      current: spec.replicas == 0 || status.availableReplicas == status.replicas
+  interval: 1h
+  path: ./kubernetes/apps/actions/forgejo-runner/app
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: actions

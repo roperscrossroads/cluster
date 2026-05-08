@@ -1,0 +1,38 @@
+---
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: forgejo-runner-auth
+spec:
+  secretTargetRef:
+    - parameter: token
+      name: forgejo-runner
+      key: api-token
+---
+# minReplicaCount is 1 (NOT 0) due to a KEDA v2.19.0 bug in the
+# forgejo-runner scaler: GetMetricsAndActivity hard-codes IsActive: true
+# regardless of queue depth, so KEDA never scales the deployment back to 0.
+# Fixed in upstream main (commit 5f89276e) but not yet released. When KEDA
+# 2.20.x ships with the fix, change minReplicaCount to 0 here and bump the
+# chart version in keda-system.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: forgejo-runner
+spec:
+  scaleTargetRef:
+    name: forgejo-runner
+  minReplicaCount: 1
+  maxReplicaCount: 3
+  pollingInterval: 30
+  cooldownPeriod: 120
+  triggers:
+    - type: forgejo-runner
+      authenticationRef:
+        name: forgejo-runner-auth
+      metadata:
+        address: http://172.16.20.16:3000
+        global: 'false'
+        org: dev
+        labels: k8s
+        name: forgejo-runner-k8s

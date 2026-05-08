@@ -1,0 +1,106 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: forgejo-runner
+  labels:
+    app.kubernetes.io/name: forgejo-runner
+    app.kubernetes.io/component: runner
+spec:
+  replicas: 0  # KEDA scales 0 -> N -> 0; do not set this manually
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: forgejo-runner
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: forgejo-runner
+        app.kubernetes.io/component: runner
+    spec:
+      serviceAccountName: forgejo-runner
+      automountServiceAccountToken: false
+      hostNetwork: false
+      hostPID: false
+      hostIPC: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: stage-runner-config
+          image: code.forgejo.org/forgejo/runner:12.6.3
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -eu
+              cp /etc/runner/runner-config /data/.runner
+              chmod 600 /data/.runner
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: runner-secret
+              mountPath: /etc/runner
+              readOnly: true
+            - name: runner-data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+              ephemeral-storage: 100Mi
+            limits:
+              cpu: 200m
+              memory: 64Mi
+              ephemeral-storage: 200Mi
+      containers:
+        - name: runner
+          image: code.forgejo.org/forgejo/runner:12.6.3
+          imagePullPolicy: IfNotPresent
+          workingDir: /data
+          command:
+            - /bin/forgejo-runner
+            - daemon
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          env:
+            - name: HOME
+              value: /data
+          volumeMounts:
+            - name: runner-data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+              ephemeral-storage: 1Gi
+            limits:
+              cpu: '1'
+              memory: 1Gi
+              ephemeral-storage: 5Gi
+      volumes:
+        - name: runner-secret
+          secret:
+            secretName: forgejo-runner
+            defaultMode: 0400
+        - name: runner-data
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
