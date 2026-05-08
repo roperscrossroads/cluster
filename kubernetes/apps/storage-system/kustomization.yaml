@@ -8,3 +8,4 @@ components:
 
 resources:
   - ./namespace.yaml
+  - ./local-path-provisioner/ks.yaml
