@@ -1,0 +1,31 @@
+---
+name: smoke-self-hosted
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/smoke-self-hosted.yaml
+
+jobs:
+  smoke:
+    runs-on: cluster-arc
+    steps:
+      - name: where am I
+        run: |
+          echo "hostname:        $(hostname)"
+          echo "kernel:          $(uname -a)"
+          echo "runner.name:     $RUNNER_NAME"
+          echo "runner.os:       $RUNNER_OS"
+          echo "runner.arch:     $RUNNER_ARCH"
+          echo "github.repo:     $GITHUB_REPOSITORY"
+          echo "github.run_id:   $GITHUB_RUN_ID"
+
+      - name: prove we are in the cluster
+        run: |
+          if [ -d /var/run/secrets/kubernetes.io/serviceaccount ]; then
+            echo "in-cluster service-account secret present"
+            cat /var/run/secrets/kubernetes.io/serviceaccount/namespace
+          else
+            echo "no in-cluster sa secret (this is fine for non-kube jobs)"
+          fi
