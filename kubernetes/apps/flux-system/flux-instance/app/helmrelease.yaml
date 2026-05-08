@@ -21,7 +21,8 @@ spec:
         - notification-controller
       sync:
         kind: GitRepository
-        url: "https://github.com/roperscrossroads/cluster.git"
+        url: "ssh://git@github.com/roperscrossroads/cluster.git"
+        pullSecret: github-deploy-key
         ref: "refs/heads/main"
         path: kubernetes/flux/cluster
       commonMetadata:
