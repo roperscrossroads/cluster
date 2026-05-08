@@ -1,0 +1,31 @@
+---
+# Defense-in-depth for plaintext-secret leaks: gitleaks runs on commit AND push.
+default_install_hook_types: [pre-commit, pre-push]
+default_stages: [pre-commit]
+
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+        # On pre-commit, gitleaks scans staged content. On pre-push, the same
+        # hook runs again against the full diff being pushed — catches anything
+        # that landed via `git add -f` or `--no-verify`.
+        stages: [pre-commit, pre-push]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: detect-private-key
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=2048]
+      - id: end-of-file-fixer
+        exclude: '(^|/)(_out/|\.private/)'
+      - id: trailing-whitespace
+        exclude: '(^|/)(_out/|\.private/)'
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+        # Skip SOPS-encrypted YAML (gitleaks already handles it; the binary
+        # ENC[...] payloads can confuse the YAML parser on some inputs).
+        exclude: '(^|/)(.*\.sops\.ya?ml|talos/clusterconfig/.*\.yaml)$'

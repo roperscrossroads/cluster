@@ -17,3 +17,14 @@ talosconfig
 .venv/
 .DS_Store
 Thumbs.db
+
+# Rendered Talos node configs (plaintext PKI). Excluded at root level in
+# addition to the per-folder .gitignore inside talos/clusterconfig/.
+/talos/clusterconfig/
+
+# Local pre-commit cache
+.pre-commit-cache/
+
+# Decrypted SOPS output
+*.dec.yaml
+*.dec.yml

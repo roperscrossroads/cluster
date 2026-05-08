@@ -1,0 +1,43 @@
+# Extends the upstream gitleaks ruleset with detections for plaintext Talos
+# PKI material and age (SOPS) private keys — content that should never reach
+# git in this repo.
+[extend]
+useDefault = true
+
+[[rules]]
+id = "talos-machine-token"
+description = "Plaintext Talos machine bootstrap token (machine.token in clusterconfig)"
+regex = '''(?m)^\s*token:\s*[a-z0-9]{6}\.[a-z0-9]{16}\s*$'''
+tags = ["talos", "private-key"]
+
+[[rules]]
+id = "talos-cluster-secret"
+description = "Plaintext Talos cluster.secret"
+regex = '''(?m)^\s*secret:\s*[A-Za-z0-9+/]{40,}={0,2}\s*$'''
+tags = ["talos", "private-key"]
+
+[[rules]]
+id = "talos-secretbox-encryption-secret"
+description = "Plaintext Talos secretboxEncryptionSecret (etcd-at-rest encryption key)"
+regex = '''(?i)secretboxEncryptionSecret:\s*[A-Za-z0-9+/]{40,}={0,2}'''
+tags = ["talos", "private-key"]
+
+[[rules]]
+id = "age-secret-key"
+description = "Plaintext age (SOPS) private key"
+regex = '''AGE-SECRET-KEY-1[0-9A-Z]{50,}'''
+tags = ["age", "sops", "private-key"]
+
+# Keep secrets stored in `.private/` and `_out/` from being scanned (these are
+# explicitly out-of-tree workdirs the template uses) — but they're also
+# already gitignored, so this is belt-and-suspenders.
+[allowlist]
+description = "Workdirs and known-encrypted artifacts"
+paths = [
+    '''(^|/)\.private/''',
+    '''(^|/)_out/''',
+    # SOPS-encrypted files: ENC[...] payloads sometimes match generic-secret
+    # regexes; the encryption itself is the protection.
+    '''.*\.sops\.ya?ml$''',
+    '''.*\.sops\.json$''',
+]
