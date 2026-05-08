@@ -12,3 +12,4 @@ resources:
   - ./democratic-csi-zfs-nvmeof-1/ks.yaml
   - ./democratic-csi-zfs-nvmeof-2/ks.yaml
   - ./democratic-csi-zfs-nfs-1/ks.yaml
+  - ./democratic-csi-zfs-nfs-2/ks.yaml
