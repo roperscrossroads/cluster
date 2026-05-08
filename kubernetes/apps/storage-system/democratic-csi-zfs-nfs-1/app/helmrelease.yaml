@@ -1,0 +1,45 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: democratic-csi-zfs-nfs-1
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: democratic-csi
+      version: 0.15.1
+      sourceRef:
+        kind: HelmRepository
+        name: democratic-csi-zfs-nfs-1
+  values:
+    csiDriver:
+      name: org.democratic-csi.zfs-nfs-1
+    driver:
+      # NOTE: existingConfigSecret MUST stay inside the driver: block.
+      # Top-level values.existingConfigSecret is silently ignored by the
+      # democratic-csi chart (which then auto-generates an empty driver
+      # config Secret and the controller fails). See infra-new
+      # tmp-phase5-issues.md issue #2 for context.
+      existingConfigSecret: democratic-csi-zfs-nfs-1-config
+      config:
+        driver: zfs-generic-nfs
+    storageClasses:
+      - name: zfs-nfs-1
+        defaultClass: false
+        reclaimPolicy: Delete
+        volumeBindingMode: Immediate
+        allowVolumeExpansion: true
+        parameters:
+          fsType: nfs
+        mountOptions:
+          - noatime
+          - nfsvers=4.2
+    controller:
+      driver:
+        image:
+          tag: v1.9.5
+    node:
+      driver:
+        image:
+          tag: v1.9.5
