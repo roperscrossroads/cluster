@@ -1,0 +1,10 @@
+---
+# Upstream Dagu Helm repo, published from the dagucloud/dagu releases.
+# Chart source: https://github.com/dagucloud/dagu/tree/main/charts/dagu
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: dagu
+spec:
+  interval: 1h
+  url: https://dagucloud.github.io/dagu

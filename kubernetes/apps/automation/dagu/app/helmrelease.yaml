@@ -1,0 +1,76 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: dagu
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: dagu
+      version: "1.0.6"
+      sourceRef:
+        kind: HelmRepository
+        name: dagu
+  values:
+    image:
+      repository: ghcr.io/dagucloud/dagu
+      tag: "2.6.7"
+      pullPolicy: IfNotPresent
+
+    # Built-in JWT auth + RBAC + first-user signup.
+    # OIDC/SSO requires a paid self-host license — Authelia
+    # forward-auth via Caddy on auth-manage handles SSO instead.
+    auth:
+      mode: builtin
+      builtin:
+        token:
+          # Empty -> chart auto-generates secret at {data_dir}/auth/token_secret
+          secret: ""
+          ttl: "24h"
+
+    # REQUIRED: ReadWriteMany for shared state across scheduler/coordinator/ui/workers
+    persistence:
+      enabled: true
+      accessMode: ReadWriteMany
+      size: 20Gi
+      storageClass: zfs-nfs-1
+
+    # Enable Steward (built-in AI assistant). Models are configured in the UI
+    # at /agent-settings — point at LiteLLM (OpenAI-compatible base URL) when
+    # ready. Toggle off here if you'd rather opt in via the UI on first login.
+    extraEnv:
+      - name: DAGU_AGENT_ENABLED
+        value: "true"
+      - name: DAGU_TZ
+        value: "America/New_York"
+
+    # Single instance of the control-plane components. Workers scale separately.
+    scheduler:
+      replicas: 1
+    coordinator:
+      replicas: 1
+      healthPort: 8091
+    ui:
+      replicas: 1
+      service:
+        port: 8080
+
+    # One general worker pool to start. Add a 'harness' pool later for the
+    # CLI coding-agent steps (claude/codex/etc.) — those need their binaries
+    # baked into a custom image or installed via initContainer.
+    worker:
+      healthPort: 8092
+    workerPools:
+      general:
+        replicas: 2
+        labels:
+          environment: home
+          pool: general
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"

@@ -1,0 +1,19 @@
+---
+# Internal-only ingress. Hostname resolves on public DNS (Cloudflare),
+# but CNAMEs to internal.${SECRET_DOMAIN} -> 172.16.21.102 (RFC 1918,
+# unreachable from the internet). Caddy on auth-manage proxies
+# dagu.home.arpa -> here, with Authelia forward-auth in front.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: dagu
+spec:
+  hostnames: ["dagu-int.${SECRET_DOMAIN}"]
+  parentRefs:
+    - name: envoy-internal
+      namespace: network
+      sectionName: https
+  rules:
+    - backendRefs:
+        - name: dagu-ui
+          port: 8080
