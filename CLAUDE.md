@@ -8,7 +8,7 @@
 
 ```
 kubernetes/apps/
-├── cert-manager/     # ACME issuer for *.ropxr.dev (Cloudflare DNS-01)
+├── cert-manager/     # ACME issuer (Cloudflare DNS-01)
 ├── default/          # echo (smoke test target)
 ├── flux-system/      # flux-operator + flux-instance (self-managing)
 ├── kube-system/      # cilium, coredns, metrics-server, reloader, spegel
@@ -18,9 +18,11 @@ kubernetes/apps/
 │                     # local-path-provisioner. zfs-nvmeof-1 is default.
 ├── keda-system/      # KEDA 2.19.0 via classic HelmRepository (NOT OCI;
 │                     # ghcr.io anonymous DENIED on kedacore org)
-└── actions/          # arc-controller (in arc-systems ns), arc-runner-sets
-                      # (cluster, meshsense — runners spawn in arc-runners
-                      # ns), forgejo-runner (raw Deployment + KEDA SO)
+├── actions/          # arc-controller (in arc-systems ns), arc-runner-sets
+│                     # (cluster, meshsense — runners spawn in arc-runners
+│                     # ns), forgejo-runner (raw Deployment + KEDA SO)
+└── automation/       # dagu workflow engine (internal HTTPRoute,
+                      # builtin auth, RWX persistence on zfs-nfs)
 ```
 
 ## Operational truth
@@ -87,14 +89,35 @@ level — workflows there silently never trigger.
 If you need IaC-side CI, that's a Forgejo site config change, not a
 runner change.
 
+## What runs here vs. on the LXC side
+
+The cluster is the **k8s-native execution surface** of a hybrid estate:
+
+| Concern | Where it lives |
+|---|---|
+| Container orchestration, k8s CI runners | this repo (cluster) |
+| Workflow execution engine (Dagu) | this repo (`automation/`) |
+| Storage (CSI / RWX / NFS) | this repo (`storage-system/`) |
+| Reverse proxy + Authelia + Caddy | LXC, owned by `~/infra-new` |
+| LiteLLM proxy + Postgres + virtual keys | LXC, owned by `~/infra-new` |
+| LM Studio (local model serving) | a Windows VM on a separate Proxmox host |
+| AFFiNE / Open WebUI / Mattermost (consumer surfaces) | LXC, owned by `~/infra-new` |
+| Long-form runbooks | `~/notes/local/infra/` |
+
+The cluster talks to LiteLLM (DNS-resolvable on the home network) for
+agent workloads scheduled by Dagu. Cluster pods do not currently
+resolve `home.arpa` automatically — see the FUTURE.md note about a
+CoreDNS forwarder, and use a direct IP for now if a workload needs
+the proxy.
+
 ## What's NOT here
 
-- Application workloads (databases, web apps, etc.) — there are none
-  yet. The cluster is currently a fully-functional platform with no
-  user apps deployed.
-- Authelia / Paperless / etc. — those are LXC services on
-  `proxbox`/`proxtwo`, owned by `~/infra-new`.
-- Long-form runbooks — those live in `~/notes/local/infra/`.
+- Application data with strong durability requirements (databases for
+  AFFiNE, Mattermost, Forgejo, etc.) — those stay on LXC, on
+  ZFS-snapshotted storage. The cluster runs workloads, not records of
+  truth.
+- Authelia / Paperless / etc. — those are LXC services owned by
+  `~/infra-new`.
 
 ## Common operations
 
