@@ -1,0 +1,51 @@
+#!/bin/bash
+# Reject commit messages that contain internal infrastructure identifiers.
+# Rule: ~/.claude/CLAUDE.md, ~/notes/CLAUDE.md, ~/agents/governance.md.
+# Bypass with `git commit --no-verify` only as a last resort.
+#
+# Install: ln -sf ../../scripts/git-hooks/commit-msg .git/hooks/commit-msg
+
+set -euo pipefail
+msg_file="$1"
+msg=$(grep -v '^#' "$msg_file" || true)
+
+forbidden=(
+  '\b[a-z0-9-]+\.home\.arpa\b'
+  '\bhome\.arpa\b'
+  '\b172\.16\.[0-9]{1,3}\.[0-9]{1,3}\b'
+  '\b192\.168\.[0-9]{1,3}\.[0-9]{1,3}\b'
+  '\b10\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\b'
+  '\bclaudebot-compute\b'
+  '\blitellm-compute\b'
+  '\bopenwebui-compute\b'
+  '\bchat-compute\b'
+  '\baffine-compute\b'
+  '\bdnsdhcp-compute\b'
+  '\bregistry-home-arpa-auth\b'
+  '\bhome-arpa\b'
+)
+
+for pat in "${forbidden[@]}"; do
+  if echo "$msg" | grep -Eq "$pat"; then
+    match=$(echo "$msg" | grep -Eo "$pat" | head -1)
+    cat >&2 <<EOF
+✗ commit message contains an internal infrastructure identifier.
+
+  matched: ${match}
+  pattern: ${pat}
+
+  Rule: don't put hostnames / IPs / internal DNS names in commit
+  subjects or bodies. They live in (encrypted) config or
+  ~/notes/local/infra/hosts.md, not in git history.
+
+  See:  ~/.claude/CLAUDE.md (top-level rule + anti-examples)
+        ~/notes/CLAUDE.md
+        ~/agents/governance.md
+
+  Bypass with --no-verify only if the leak is truly unavoidable
+  (e.g. quoting a public upstream's own DNS name).
+EOF
+    exit 1
+  fi
+done
+exit 0
