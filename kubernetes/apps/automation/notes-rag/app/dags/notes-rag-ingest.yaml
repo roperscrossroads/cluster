@@ -15,7 +15,10 @@
 name: notes-rag-ingest
 description: Re-ingest ~/notes/local/infra into OpenWebUI KB + memtech every 15 min
 type: graph
-schedule: "*/15 * * * *"
+# Suspended 2026-05-09 during cybersecurity hardening pass — see
+# ~/.claude/plans/i-want-to-clean-nifty-cake.md. Re-enable to
+# "*/15 * * * *" in Phase H after verification.
+schedule: ""
 max_active_runs: 1
 
 kubernetes:
