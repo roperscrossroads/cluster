@@ -4,8 +4,8 @@
 
 name: notes-rag-rebuild
 description: Manual-trigger full rebuild of the notes-rag corpus
-schedule: ""
-maxActiveRuns: 1
+type: graph
+max_active_runs: 1
 
 kubernetes:
   namespace: automation
