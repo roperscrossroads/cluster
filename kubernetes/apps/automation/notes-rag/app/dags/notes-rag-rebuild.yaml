@@ -37,19 +37,38 @@ steps:
     type: k8s
     with:
       image: curlimages/curl:8.10.1
-      env_from:
-        - secret_ref:
-            name: memtech-credentials
+      volumes:
+        - name: memtech-secret
+          secret:
+            secret_name: memtech-credentials
+      volume_mounts:
+        - name: memtech-secret
+          mount_path: /etc/secrets
+          read_only: true
     command: |-
-      sh -c "curl -ksS -X DELETE -H 'X-API-Key: ${MEMTECH_API_KEY}' -H 'Content-Type: application/json' -d '[\"corpus:notes-infra\"]' \"${MEMTECH_BASE_URL}/api/documents/remove-by-tags\""
+      sh -c "curl -ksS -X DELETE -H \"X-API-Key: $(cat /etc/secrets/MEMTECH_API_KEY)\" -H 'Content-Type: application/json' -d '[\"corpus:notes-infra\"]' \"$(cat /etc/secrets/MEMTECH_BASE_URL)/api/documents/remove-by-tags\""
 
   - id: wipe_openwebui
     type: k8s
     with:
       image: registry.home.arpa:8080/notes-rag-ingest:v0.1.0
-      env_from:
-        - secret_ref:
-            name: openwebui-credentials
+      env:
+        - name: SSL_CERT_FILE
+          value: /etc/ssl/internal-ca/ca.crt
+      volumes:
+        - name: ca
+          config_map:
+            name: internal-ca
+        - name: openwebui-secret
+          secret:
+            secret_name: openwebui-credentials
+      volume_mounts:
+        - name: ca
+          mount_path: /etc/ssl/internal-ca
+          read_only: true
+        - name: openwebui-secret
+          mount_path: /etc/secrets
+          read_only: true
     command: wipe-openwebui-kb
 
   - id: clear_state

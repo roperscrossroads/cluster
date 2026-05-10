@@ -27,5 +27,12 @@ configMapGenerator:
       - ca.crt=internal-ca.crt
     options:
       disableNameSuffixHash: true
+  # git credential helper — keeps the Forgejo PAT out of clone URLs,
+  # env vars, and DAG yaml. Mounted into git_pull at /etc/git-helpers/.
+  - name: notes-rag-git-helper
+    files:
+      - cred-helper.sh=git-cred-helper.sh
+    options:
+      disableNameSuffixHash: true
 generatorOptions:
   disableNameSuffixHash: false

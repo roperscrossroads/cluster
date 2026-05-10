@@ -55,9 +55,6 @@ steps:
           value: safe.directory
         - name: GIT_CONFIG_VALUE_0
           value: /state/notes
-      env_from:
-        - secret_ref:
-            name: forgejo-credentials
       volumes:
         - name: state
           persistent_volume_claim:
@@ -65,17 +62,30 @@ steps:
         - name: ca
           config_map:
             name: internal-ca
+        - name: forgejo-secret
+          secret:
+            secret_name: forgejo-credentials
+        - name: git-helper
+          config_map:
+            name: notes-rag-git-helper
+            default_mode: 0o555
       volume_mounts:
         - name: state
           mount_path: /state
         - name: ca
           mount_path: /etc/ssl/internal-ca
           read_only: true
-    # Credentials embedded in the cloned remote URL via FORGE_TOKEN env;
-    # subsequent fetches reuse the URL stored in /state/notes/.git/config.
-    # The token is on the cluster PV — fine, this is the same PV that
-    # holds the cloned source content.
-    command: 'sh -c "set -e; if [ ! -d /state/notes/.git ]; then git clone --depth=200 https://oauth2:$FORGE_TOKEN@forge.home.arpa/adam/notes.git /state/notes; fi; git -C /state/notes fetch origin master; git -C /state/notes reset --hard origin/master"'
+        - name: forgejo-secret
+          mount_path: /etc/secrets
+          read_only: true
+        - name: git-helper
+          mount_path: /etc/git-helpers
+          read_only: true
+    # Credential helper reads the PAT from /etc/secrets/FORGE_TOKEN at
+    # git-invocation time, so the token never lives in clone URLs,
+    # env vars, or DAG yaml. The remote URL is reset on every run to
+    # scrub any token-embedded URL left behind by earlier deployments.
+    command: 'sh -c "set -e; URL=https://forge.home.arpa/adam/notes.git; if [ ! -d /state/notes/.git ]; then git -c credential.helper=/etc/git-helpers/cred-helper.sh clone --depth=200 $URL /state/notes; fi; git -C /state/notes remote set-url origin $URL; git -C /state/notes -c credential.helper=/etc/git-helpers/cred-helper.sh fetch origin master; git -C /state/notes reset --hard origin/master"'
 
   - id: compute_diff
     type: k8s
@@ -134,9 +144,6 @@ steps:
       env:
         - name: SSL_CERT_FILE
           value: /etc/ssl/internal-ca/ca.crt
-      env_from:
-        - secret_ref:
-            name: openwebui-credentials
       volumes:
         - name: state
           persistent_volume_claim:
@@ -144,11 +151,17 @@ steps:
         - name: ca
           config_map:
             name: internal-ca
+        - name: openwebui-secret
+          secret:
+            secret_name: openwebui-credentials
       volume_mounts:
         - name: state
           mount_path: /state
         - name: ca
           mount_path: /etc/ssl/internal-ca
+          read_only: true
+        - name: openwebui-secret
+          mount_path: /etc/secrets
           read_only: true
     command: 'sh -c "notes-rag-ingest push-openwebui < /state/manifest.json"'
 
@@ -161,9 +174,6 @@ steps:
       env:
         - name: SSL_CERT_FILE
           value: /etc/ssl/internal-ca/ca.crt
-      env_from:
-        - secret_ref:
-            name: memtech-credentials
       volumes:
         - name: state
           persistent_volume_claim:
@@ -171,11 +181,17 @@ steps:
         - name: ca
           config_map:
             name: internal-ca
+        - name: memtech-secret
+          secret:
+            secret_name: memtech-credentials
       volume_mounts:
         - name: state
           mount_path: /state
         - name: ca
           mount_path: /etc/ssl/internal-ca
+          read_only: true
+        - name: memtech-secret
+          mount_path: /etc/secrets
           read_only: true
     command: 'sh -c "notes-rag-ingest push-memtech < /state/manifest.json"'
 
@@ -193,7 +209,7 @@ steps:
       volume_mounts:
         - name: state
           mount_path: /state
-    command: 'sh -c "cp /state/head-sha.txt /state/last-indexed-commit && rm -f /state/diff.txt /state/manifest.json /state/head-sha.txt"'
+    command: 'sh -c "mv -f /state/head-sha.txt /state/last-indexed-commit && rm -f /state/diff.txt /state/manifest.json"'
 
 handler_on:
   failure:
