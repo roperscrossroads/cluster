@@ -1,6 +1,6 @@
-# Add the imagePullSecret for registry.home.arpa:8080 to the namespace's
-# default ServiceAccount. Dagu pods (scheduler, worker, coordinator, ui)
-# all use the default SA per the upstream chart, so this lets them pull
+# Add the internal-registry imagePullSecret to the namespace's default
+# ServiceAccount. Dagu pods (scheduler, worker, coordinator, ui) all
+# use the default SA per the upstream chart, so this lets them pull
 # from the internal registry. Step Jobs spawned by the k8s executor
 # inherit this through the notes-rag-runner SA too (we set its
 # imagePullSecrets explicitly via the rbac.yaml addition below since SA
@@ -11,4 +11,4 @@ metadata:
   name: default
   namespace: automation
 imagePullSecrets:
-  - name: registry-home-arpa-auth
+  - name: internal-registry-auth

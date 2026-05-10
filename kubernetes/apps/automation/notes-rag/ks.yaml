@@ -17,5 +17,9 @@ spec:
     namespace: flux-system
   targetNamespace: automation
   wait: false
+  postBuild:
+    substituteFrom:
+      - name: cluster-secrets
+        kind: Secret
   dependsOn:
     - name: dagu

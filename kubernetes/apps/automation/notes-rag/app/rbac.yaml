@@ -7,7 +7,7 @@ metadata:
   name: notes-rag-runner
   namespace: automation
 imagePullSecrets:
-  - name: registry-home-arpa-auth
+  - name: internal-registry-auth
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role

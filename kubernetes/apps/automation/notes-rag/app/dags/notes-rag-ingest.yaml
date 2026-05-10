@@ -25,7 +25,7 @@ kubernetes:
   namespace: automation
   service_account: notes-rag-runner
   image_pull_secrets:
-    - registry-home-arpa-auth
+    - internal-registry-auth
   resources:
     requests:
       cpu: "100m"
@@ -82,9 +82,12 @@ steps:
           read_only: true
     # Credential helper reads the PAT from /etc/secrets/FORGE_TOKEN at
     # git-invocation time, so the token never lives in clone URLs,
-    # env vars, or DAG yaml. The remote URL is reset on every run to
-    # scrub any token-embedded URL left behind by earlier deployments.
-    command: 'sh -c "set -e; URL=https://forge.home.arpa/adam/notes.git; if [ ! -d /state/notes/.git ]; then git -c \"credential.helper=!sh /etc/git-helpers/cred-helper.sh\" clone --depth=200 $URL /state/notes; fi; git -C /state/notes remote set-url origin $URL; git -C /state/notes -c \"credential.helper=!sh /etc/git-helpers/cred-helper.sh\" fetch origin master; git -C /state/notes reset --hard origin/master"'
+    # env vars, or DAG yaml. The clone URL itself is read from
+    # /etc/secrets/FORGE_URL so the internal hostname doesn't appear
+    # in this manifest (which is in a public-mirrored repo). The
+    # remote URL is reset on every run to scrub any token-embedded
+    # URL left behind by earlier deployments.
+    command: 'sh -c "set -e; URL=$(cat /etc/secrets/FORGE_URL); if [ ! -d /state/notes/.git ]; then git -c \"credential.helper=!sh /etc/git-helpers/cred-helper.sh\" clone --depth=200 $URL /state/notes; fi; git -C /state/notes remote set-url origin $URL; git -C /state/notes -c \"credential.helper=!sh /etc/git-helpers/cred-helper.sh\" fetch origin master; git -C /state/notes reset --hard origin/master"'
 
   - id: compute_diff
     type: k8s
@@ -124,7 +127,7 @@ steps:
     depends:
       - compute_diff
     with:
-      image: registry.home.arpa:8080/notes-rag-ingest:v0.2.0
+      image: ${REGISTRY_BASE}/notes-rag-ingest:v0.2.0
       volumes:
         - name: state
           persistent_volume_claim:
@@ -139,7 +142,7 @@ steps:
     depends:
       - chunk_files
     with:
-      image: registry.home.arpa:8080/notes-rag-ingest:v0.2.0
+      image: ${REGISTRY_BASE}/notes-rag-ingest:v0.2.0
       env:
         - name: SSL_CERT_FILE
           value: /etc/ssl/internal-ca/ca.crt
@@ -169,7 +172,7 @@ steps:
     depends:
       - chunk_files
     with:
-      image: registry.home.arpa:8080/notes-rag-ingest:v0.2.0
+      image: ${REGISTRY_BASE}/notes-rag-ingest:v0.2.0
       env:
         - name: SSL_CERT_FILE
           value: /etc/ssl/internal-ca/ca.crt
@@ -215,4 +218,4 @@ handler_on:
     type: k8s
     with:
       image: curlimages/curl:8.10.1
-    command: 'sh -c "curl -sS -X POST -H Title:notes-rag-ingest-failed -d failed https://ntfy.home.arpa/ops || true"'
+    command: 'sh -c "curl -sS -X POST -H Title:notes-rag-ingest-failed -d failed ${NTFY_URL} || true"'

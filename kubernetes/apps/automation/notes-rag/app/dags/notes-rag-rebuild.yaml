@@ -11,7 +11,7 @@ kubernetes:
   namespace: automation
   service_account: notes-rag-runner
   image_pull_secrets:
-    - registry-home-arpa-auth
+    - internal-registry-auth
   resources:
     requests:
       cpu: "100m"
@@ -51,7 +51,7 @@ steps:
   - id: wipe_openwebui
     type: k8s
     with:
-      image: registry.home.arpa:8080/notes-rag-ingest:v0.2.0
+      image: ${REGISTRY_BASE}/notes-rag-ingest:v0.2.0
       env:
         - name: SSL_CERT_FILE
           value: /etc/ssl/internal-ca/ca.crt
