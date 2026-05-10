@@ -40,7 +40,8 @@ steps:
       env_from:
         - secret_ref:
             name: memtech-credentials
-    command: ["sh", "-c", "curl -ksS -X DELETE -H \"X-API-Key: ${MEMTECH_API_KEY}\" -H 'Content-Type: application/json' -d '[\"corpus:notes-infra\"]' \"${MEMTECH_BASE_URL}/api/documents/remove-by-tags\""]
+    command: |-
+      sh -c "curl -ksS -X DELETE -H 'X-API-Key: ${MEMTECH_API_KEY}' -H 'Content-Type: application/json' -d '[\"corpus:notes-infra\"]' \"${MEMTECH_BASE_URL}/api/documents/remove-by-tags\""
 
   - id: wipe-openwebui
     type: k8s
@@ -49,7 +50,7 @@ steps:
       env_from:
         - secret_ref:
             name: openwebui-credentials
-    command: ["notes-rag-ingest", "wipe-openwebui-kb"]
+    command: wipe-openwebui-kb
 
   - id: clear-state
     type: k8s
@@ -65,7 +66,7 @@ steps:
       volume_mounts:
         - name: state
           mount_path: /state
-    command: ["sh", "-c", "rm -f /state/last-indexed-commit"]
+    command: 'sh -c "rm -f /state/last-indexed-commit"'
 
   - id: trigger-ingest
     depends:

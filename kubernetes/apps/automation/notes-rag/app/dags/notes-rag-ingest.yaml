@@ -38,9 +38,6 @@ kubernetes:
     seccomp_profile:
       type: RuntimeDefault
 
-env:
-  - SUBTREE: "local/infra/"
-
 steps:
   - id: git-pull
     type: k8s
@@ -53,7 +50,17 @@ steps:
       volume_mounts:
         - name: state
           mount_path: /state
-    command: ["sh", "-c", "set -e; if [ ! -d /state/notes/.git ]; then git clone --depth=200 https://forge.home.arpa/adam/notes.git /state/notes; fi; git -C /state/notes fetch origin main && git -C /state/notes reset --hard origin/main"]
+      security_context:
+        run_as_user: 0  # alpine/git default, fs ops on /state
+    command: |-
+      sh -c '
+        set -e
+        if [ ! -d /state/notes/.git ]; then
+          git clone --depth=200 https://forge.home.arpa/adam/notes.git /state/notes
+        fi
+        git -C /state/notes fetch origin main
+        git -C /state/notes reset --hard origin/main
+      '
 
   - id: compute-diff
     type: k8s
@@ -68,7 +75,22 @@ steps:
       volume_mounts:
         - name: state
           mount_path: /state
-    command: ["sh", "-c", "set -e; HEAD_SHA=$(git -C /state/notes rev-parse --short HEAD); echo \"$HEAD_SHA\" > /state/head-sha.txt; if [ -s /state/last-indexed-commit ]; then LAST=$(cat /state/last-indexed-commit); git -C /state/notes diff --name-status \"${LAST}..HEAD\" -- local/infra/ > /state/diff.txt; else (cd /state/notes && find local/infra/ -type f -name '*.md' | sed 's|^|A\\t|') > /state/diff.txt; fi; if [ ! -s /state/diff.txt ]; then touch /state/noop.flag; fi"]
+      security_context:
+        run_as_user: 0
+    command: |-
+      sh -c '
+        set -e
+        HEAD_SHA=$(git -C /state/notes rev-parse --short HEAD)
+        echo "$HEAD_SHA" > /state/head-sha.txt
+        if [ -s /state/last-indexed-commit ]; then
+          LAST=$(cat /state/last-indexed-commit)
+          git -C /state/notes diff --name-status "${LAST}..HEAD" -- local/infra/ > /state/diff.txt
+        else
+          ( cd /state/notes && find local/infra/ -type f -name "*.md" \
+              | sed "s|^|A\t|" ) > /state/diff.txt
+        fi
+        if [ ! -s /state/diff.txt ]; then touch /state/noop.flag; fi
+      '
 
   - id: chunk-files
     type: k8s
@@ -83,7 +105,22 @@ steps:
       volume_mounts:
         - name: state
           mount_path: /state
-    command: ["sh", "-c", "if [ -f /state/noop.flag ]; then echo '{\"commit_sha\":\"\",\"deleted_paths\":[],\"chunks\":[]}' > /state/manifest.json; exit 0; fi; SHA=$(cat /state/head-sha.txt); notes-rag-ingest chunk-from-diff --working-tree /state/notes --commit-sha \"$SHA\" --subtree local/infra/ < /state/diff.txt > /state/manifest.json"]
+      security_context:
+        run_as_user: 0
+    command: |-
+      sh -c '
+        if [ -f /state/noop.flag ]; then
+          echo "{\"commit_sha\":\"\",\"deleted_paths\":[],\"chunks\":[]}" > /state/manifest.json
+          exit 0
+        fi
+        SHA=$(cat /state/head-sha.txt)
+        notes-rag-ingest chunk-from-diff \
+          --working-tree /state/notes \
+          --commit-sha "$SHA" \
+          --subtree local/infra/ \
+          < /state/diff.txt \
+          > /state/manifest.json
+      '
 
   - id: push-openwebui
     type: k8s
@@ -101,7 +138,13 @@ steps:
       volume_mounts:
         - name: state
           mount_path: /state
-    command: ["sh", "-c", "if [ -f /state/noop.flag ]; then exit 0; fi; notes-rag-ingest push-openwebui < /state/manifest.json"]
+      security_context:
+        run_as_user: 0
+    command: |-
+      sh -c '
+        if [ -f /state/noop.flag ]; then exit 0; fi
+        notes-rag-ingest push-openwebui < /state/manifest.json
+      '
 
   - id: push-memtech
     type: k8s
@@ -119,7 +162,13 @@ steps:
       volume_mounts:
         - name: state
           mount_path: /state
-    command: ["sh", "-c", "if [ -f /state/noop.flag ]; then exit 0; fi; notes-rag-ingest push-memtech < /state/manifest.json"]
+      security_context:
+        run_as_user: 0
+    command: |-
+      sh -c '
+        if [ -f /state/noop.flag ]; then exit 0; fi
+        notes-rag-ingest push-memtech < /state/manifest.json
+      '
 
   - id: write-state
     type: k8s
@@ -135,11 +184,22 @@ steps:
       volume_mounts:
         - name: state
           mount_path: /state
-    command: ["sh", "-c", "if [ -f /state/noop.flag ]; then rm -f /state/noop.flag; exit 0; fi; cp /state/head-sha.txt /state/last-indexed-commit && rm -f /state/diff.txt /state/manifest.json /state/head-sha.txt"]
+      security_context:
+        run_as_user: 0
+    command: |-
+      sh -c '
+        if [ -f /state/noop.flag ]; then
+          rm -f /state/noop.flag
+          exit 0
+        fi
+        cp /state/head-sha.txt /state/last-indexed-commit
+        rm -f /state/diff.txt /state/manifest.json /state/head-sha.txt
+      '
 
 handler_on:
   failure:
     type: k8s
     with:
       image: curlimages/curl:8.10.1
-    command: ["sh", "-c", "curl -sS -X POST -H 'Title: notes-rag-ingest failed' -d \"DAG run failed at $(date -Is)\" https://ntfy.home.arpa/ops || true"]
+    command: |-
+      sh -c "curl -sS -X POST -H 'Title: notes-rag-ingest failed' -d 'DAG run failed' https://ntfy.home.arpa/ops || true"
