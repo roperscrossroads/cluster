@@ -51,7 +51,7 @@ steps:
   - id: wipe_openwebui
     type: k8s
     with:
-      image: ${REGISTRY_BASE}/notes-rag-ingest:v0.2.0
+      image: ${REGISTRY_BASE}/notes-rag-ingest:v0.2.1
       env:
         - name: SSL_CERT_FILE
           value: /etc/ssl/internal-ca/ca.crt
