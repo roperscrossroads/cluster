@@ -43,6 +43,9 @@ steps:
       env:
         - name: GIT_SSL_CAINFO
           value: /etc/ssl/internal-ca/ca.crt
+      env_from:
+        - secret_ref:
+            name: forgejo-credentials
       volumes:
         - name: state
           persistent_volume_claim:
@@ -56,7 +59,11 @@ steps:
         - name: ca
           mount_path: /etc/ssl/internal-ca
           read_only: true
-    command: 'sh -c "set -e; if [ ! -d /state/notes/.git ]; then git clone --depth=200 https://forge.home.arpa/adam/notes.git /state/notes; fi; git -C /state/notes fetch origin main; git -C /state/notes reset --hard origin/main"'
+    # Credentials embedded in the cloned remote URL via FORGE_TOKEN env;
+    # subsequent fetches reuse the URL stored in /state/notes/.git/config.
+    # The token is on the cluster PV — fine, this is the same PV that
+    # holds the cloned source content.
+    command: 'sh -c "set -e; if [ ! -d /state/notes/.git ]; then git clone --depth=200 https://oauth2:$FORGE_TOKEN@forge.home.arpa/adam/notes.git /state/notes; fi; git -C /state/notes fetch origin main; git -C /state/notes reset --hard origin/main"'
 
   - id: compute_diff
     type: k8s

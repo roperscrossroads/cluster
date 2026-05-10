@@ -9,6 +9,7 @@ resources:
   - ./secrets/registry-auth.sops.yaml
   - ./secrets/memtech-credentials.sops.yaml
   - ./secrets/openwebui-credentials.sops.yaml
+  - ./secrets/forgejo-credentials.sops.yaml
 
 # Generated ConfigMap holding the DAG yamls. Hashed name → flux re-applies
 # whenever DAG content changes. Read by the dags-syncer (or by hand-copying
