@@ -43,6 +43,15 @@ steps:
       env:
         - name: GIT_SSL_CAINFO
           value: /etc/ssl/internal-ca/ca.crt
+        # safe.directory bypass — step pods run as a different uid than
+        # the previous owner of the cloned dir on the RWX PV, which trips
+        # git's "dubious ownership" check by default.
+        - name: GIT_CONFIG_COUNT
+          value: "1"
+        - name: GIT_CONFIG_KEY_0
+          value: safe.directory
+        - name: GIT_CONFIG_VALUE_0
+          value: /state/notes
       env_from:
         - secret_ref:
             name: forgejo-credentials
@@ -74,6 +83,12 @@ steps:
       env:
         - name: GIT_SSL_CAINFO
           value: /etc/ssl/internal-ca/ca.crt
+        - name: GIT_CONFIG_COUNT
+          value: "1"
+        - name: GIT_CONFIG_KEY_0
+          value: safe.directory
+        - name: GIT_CONFIG_VALUE_0
+          value: /state/notes
       volumes:
         - name: state
           persistent_volume_claim:
