@@ -1,0 +1,44 @@
+# Service account that Dagu's k8s-step Jobs run as. Plus the RBAC
+# Dagu itself needs to create those Jobs in the automation namespace.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: notes-rag-runner
+  namespace: automation
+imagePullSecrets:
+  - name: registry-home-arpa-auth
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: dagu-k8s-executor
+  namespace: automation
+rules:
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["create", "get", "list", "watch", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dagu-k8s-executor
+  namespace: automation
+subjects:
+  # Dagu's chart (dagucloud/dagu 1.0.6) doesn't create per-component
+  # SAs and falls back to `default` in this namespace. Verified live
+  # 2026-05-09 via `kubectl -n automation get pods -o jsonpath`. If
+  # the chart adds dedicated SAs in a future bump, swap these.
+  - kind: ServiceAccount
+    name: default
+    namespace: automation
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: dagu-k8s-executor

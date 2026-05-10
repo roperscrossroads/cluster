@@ -1,0 +1,12 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: notes-rag-state
+  namespace: automation
+spec:
+  accessModes: [ReadWriteMany]
+  storageClassName: zfs-nfs-1
+  resources:
+    requests:
+      storage: 5Gi

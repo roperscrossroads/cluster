@@ -9,3 +9,4 @@ components:
 resources:
   - ./namespace.yaml
   - ./dagu/ks.yaml
+  - ./notes-rag/ks.yaml

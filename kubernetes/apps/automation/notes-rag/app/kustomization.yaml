@@ -1,0 +1,22 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: automation
+resources:
+  - ./pvc.yaml
+  - ./rbac.yaml
+  - ./default-sa-patch.yaml
+  - ./secrets/registry-auth.sops.yaml
+  - ./secrets/memtech-credentials.sops.yaml
+  - ./secrets/openwebui-credentials.sops.yaml
+
+# Generated ConfigMap holding the DAG yamls. Hashed name → flux re-applies
+# whenever DAG content changes. Read by the dags-syncer (or by hand-copying
+# files to /data/dags via kubectl cp until the syncer Deployment ships).
+configMapGenerator:
+  - name: notes-rag-dags
+    files:
+      - dags/notes-rag-ingest.yaml
+      - dags/notes-rag-rebuild.yaml
+generatorOptions:
+  disableNameSuffixHash: false

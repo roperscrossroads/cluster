@@ -1,0 +1,75 @@
+# Manual-trigger full rebuild — no schedule.
+# Use after the chunker changes shape, the tag scheme changes, or a
+# destination gets out of sync.
+
+name: notes-rag-rebuild
+description: Manual-trigger full rebuild of the notes-rag corpus
+schedule: ""
+maxActiveRuns: 1
+
+kubernetes:
+  namespace: automation
+  service_account: notes-rag-runner
+  image_pull_secrets:
+    - registry-home-arpa-auth
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "500m"
+      memory: "256Mi"
+  security_context:
+    run_as_non_root: true
+    run_as_user: 1000
+    allow_privilege_escalation: false
+    capabilities:
+      drop: [ALL]
+    seccomp_profile:
+      type: RuntimeDefault
+  pod_security_context:
+    fs_group: 1000
+    seccomp_profile:
+      type: RuntimeDefault
+
+steps:
+  - id: wipe-memtech
+    type: k8s
+    with:
+      image: curlimages/curl:8.10.1
+      env_from:
+        - secret_ref:
+            name: memtech-credentials
+    command: ["sh", "-c", "curl -ksS -X DELETE -H \"X-API-Key: ${MEMTECH_API_KEY}\" -H 'Content-Type: application/json' -d '[\"corpus:notes-infra\"]' \"${MEMTECH_BASE_URL}/api/documents/remove-by-tags\""]
+
+  - id: wipe-openwebui
+    type: k8s
+    with:
+      image: registry.home.arpa:8080/notes-rag-ingest:v0.1.0
+      env_from:
+        - secret_ref:
+            name: openwebui-credentials
+    command: ["notes-rag-ingest", "wipe-openwebui-kb"]
+
+  - id: clear-state
+    type: k8s
+    depends:
+      - wipe-memtech
+      - wipe-openwebui
+    with:
+      image: alpine:3.20
+      volumes:
+        - name: state
+          persistent_volume_claim:
+            claim_name: notes-rag-state
+      volume_mounts:
+        - name: state
+          mount_path: /state
+    command: ["sh", "-c", "rm -f /state/last-indexed-commit"]
+
+  - id: trigger-ingest
+    depends:
+      - clear-state
+    # Native Dagu sub-DAG run.
+    run: notes-rag-ingest
+    params: ""

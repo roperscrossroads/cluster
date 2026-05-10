@@ -1,0 +1,144 @@
+# Source: ~/agents/docs/superpowers/specs/2026-05-09-notes-rag-endpoint-design.md
+# Driver code:  ~/agents/notes-rag-ingest/
+#
+# Schedule: every 15 min. Re-ingests ~/notes/local/infra/ into OpenWebUI KB
+# infra-notes + memtech (tag corpus:notes-infra). Idempotent: each run
+# deletes stale chunks by tag/path then inserts fresh ones; state advances
+# only on full success.
+
+name: notes-rag-ingest
+description: Re-ingest ~/notes/local/infra into OpenWebUI KB + memtech every 15 min
+schedule: "*/15 * * * *"
+maxActiveRuns: 1
+
+# Defaults shared by every k8s step. Step-level `with` overrides.
+kubernetes:
+  namespace: automation
+  service_account: notes-rag-runner
+  image_pull_secrets:
+    - registry-home-arpa-auth
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+  security_context:
+    run_as_non_root: true
+    run_as_user: 1000
+    allow_privilege_escalation: false
+    capabilities:
+      drop: [ALL]
+    seccomp_profile:
+      type: RuntimeDefault
+  pod_security_context:
+    fs_group: 1000
+    seccomp_profile:
+      type: RuntimeDefault
+
+env:
+  - SUBTREE: "local/infra/"
+
+steps:
+  - id: git-pull
+    type: k8s
+    with:
+      image: alpine/git:2.45.0
+      volumes:
+        - name: state
+          persistent_volume_claim:
+            claim_name: notes-rag-state
+      volume_mounts:
+        - name: state
+          mount_path: /state
+    command: ["sh", "-c", "set -e; if [ ! -d /state/notes/.git ]; then git clone --depth=200 https://forge.home.arpa/adam/notes.git /state/notes; fi; git -C /state/notes fetch origin main && git -C /state/notes reset --hard origin/main"]
+
+  - id: compute-diff
+    type: k8s
+    depends:
+      - git-pull
+    with:
+      image: alpine/git:2.45.0
+      volumes:
+        - name: state
+          persistent_volume_claim:
+            claim_name: notes-rag-state
+      volume_mounts:
+        - name: state
+          mount_path: /state
+    command: ["sh", "-c", "set -e; HEAD_SHA=$(git -C /state/notes rev-parse --short HEAD); echo \"$HEAD_SHA\" > /state/head-sha.txt; if [ -s /state/last-indexed-commit ]; then LAST=$(cat /state/last-indexed-commit); git -C /state/notes diff --name-status \"${LAST}..HEAD\" -- local/infra/ > /state/diff.txt; else (cd /state/notes && find local/infra/ -type f -name '*.md' | sed 's|^|A\\t|') > /state/diff.txt; fi; if [ ! -s /state/diff.txt ]; then touch /state/noop.flag; fi"]
+
+  - id: chunk-files
+    type: k8s
+    depends:
+      - compute-diff
+    with:
+      image: registry.home.arpa:8080/notes-rag-ingest:v0.1.0
+      volumes:
+        - name: state
+          persistent_volume_claim:
+            claim_name: notes-rag-state
+      volume_mounts:
+        - name: state
+          mount_path: /state
+    command: ["sh", "-c", "if [ -f /state/noop.flag ]; then echo '{\"commit_sha\":\"\",\"deleted_paths\":[],\"chunks\":[]}' > /state/manifest.json; exit 0; fi; SHA=$(cat /state/head-sha.txt); notes-rag-ingest chunk-from-diff --working-tree /state/notes --commit-sha \"$SHA\" --subtree local/infra/ < /state/diff.txt > /state/manifest.json"]
+
+  - id: push-openwebui
+    type: k8s
+    depends:
+      - chunk-files
+    with:
+      image: registry.home.arpa:8080/notes-rag-ingest:v0.1.0
+      env_from:
+        - secret_ref:
+            name: openwebui-credentials
+      volumes:
+        - name: state
+          persistent_volume_claim:
+            claim_name: notes-rag-state
+      volume_mounts:
+        - name: state
+          mount_path: /state
+    command: ["sh", "-c", "if [ -f /state/noop.flag ]; then exit 0; fi; notes-rag-ingest push-openwebui < /state/manifest.json"]
+
+  - id: push-memtech
+    type: k8s
+    depends:
+      - chunk-files
+    with:
+      image: registry.home.arpa:8080/notes-rag-ingest:v0.1.0
+      env_from:
+        - secret_ref:
+            name: memtech-credentials
+      volumes:
+        - name: state
+          persistent_volume_claim:
+            claim_name: notes-rag-state
+      volume_mounts:
+        - name: state
+          mount_path: /state
+    command: ["sh", "-c", "if [ -f /state/noop.flag ]; then exit 0; fi; notes-rag-ingest push-memtech < /state/manifest.json"]
+
+  - id: write-state
+    type: k8s
+    depends:
+      - push-openwebui
+      - push-memtech
+    with:
+      image: alpine:3.20
+      volumes:
+        - name: state
+          persistent_volume_claim:
+            claim_name: notes-rag-state
+      volume_mounts:
+        - name: state
+          mount_path: /state
+    command: ["sh", "-c", "if [ -f /state/noop.flag ]; then rm -f /state/noop.flag; exit 0; fi; cp /state/head-sha.txt /state/last-indexed-commit && rm -f /state/diff.txt /state/manifest.json /state/head-sha.txt"]
+
+handlerOn:
+  failure:
+    type: k8s
+    with:
+      image: curlimages/curl:8.10.1
+    command: ["sh", "-c", "curl -sS -X POST -H 'Title: notes-rag-ingest failed' -d \"DAG run failed at $(date -Is)\" https://ntfy.home.arpa/ops || true"]
