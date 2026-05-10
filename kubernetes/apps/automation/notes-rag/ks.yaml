@@ -8,10 +8,9 @@ spec:
   interval: 1h
   path: ./kubernetes/apps/automation/notes-rag/app
   prune: true
-  decryption:
-    provider: sops
-    secretRef:
-      name: sops-age
+  # decryption.provider: sops is injected automatically by cluster-apps
+  # patches; the `sops-age` secret is wired into kustomize-controller via
+  # --sops-age-secret in the Flux instance helmrelease.
   sourceRef:
     kind: GitRepository
     name: flux-system
