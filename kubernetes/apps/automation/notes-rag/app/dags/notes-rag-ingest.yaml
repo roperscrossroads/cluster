@@ -127,7 +127,7 @@ steps:
     depends:
       - compute_diff
     with:
-      image: ${REGISTRY_BASE}/notes-rag-ingest:v0.2.1
+      image: ${REGISTRY_BASE}/notes-rag-ingest:v0.2.2
       volumes:
         - name: state
           persistent_volume_claim:
@@ -142,7 +142,7 @@ steps:
     depends:
       - chunk_files
     with:
-      image: ${REGISTRY_BASE}/notes-rag-ingest:v0.2.1
+      image: ${REGISTRY_BASE}/notes-rag-ingest:v0.2.2
       env:
         - name: SSL_CERT_FILE
           value: /etc/ssl/internal-ca/ca.crt
@@ -172,7 +172,7 @@ steps:
     depends:
       - chunk_files
     with:
-      image: ${REGISTRY_BASE}/notes-rag-ingest:v0.2.1
+      image: ${REGISTRY_BASE}/notes-rag-ingest:v0.2.2
       env:
         - name: SSL_CERT_FILE
           value: /etc/ssl/internal-ca/ca.crt
