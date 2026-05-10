@@ -45,8 +45,12 @@ spec:
       # Keep bge-m3 warm forever — no cold-load on every cron tick
       - name: OLLAMA_KEEP_ALIVE
         value: "24h"
-      # 2 concurrent embed requests per model (sized for batched RAG indexing)
+      # Concurrent embed requests per model. 4 matches N100 vCPUs;
+      # combined with OLLAMA_NUM_THREAD=2 each request gets 2 cores =
+      # 4 inference slots × 2 cores fits without context-switch thrash.
       - name: OLLAMA_NUM_PARALLEL
+        value: "4"
+      - name: OLLAMA_NUM_THREAD
         value: "2"
       # Forward-looking: when a small chat model joins, allow both warm
       - name: OLLAMA_MAX_LOADED_MODELS
