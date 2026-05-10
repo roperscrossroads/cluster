@@ -125,7 +125,7 @@ steps:
     depends:
       - compute_diff
     with:
-      image: registry.home.arpa:8080/notes-rag-ingest:v0.1.0
+      image: registry.home.arpa:8080/notes-rag-ingest:v0.2.0
       volumes:
         - name: state
           persistent_volume_claim:
@@ -140,7 +140,7 @@ steps:
     depends:
       - chunk_files
     with:
-      image: registry.home.arpa:8080/notes-rag-ingest:v0.1.0
+      image: registry.home.arpa:8080/notes-rag-ingest:v0.2.0
       env:
         - name: SSL_CERT_FILE
           value: /etc/ssl/internal-ca/ca.crt
@@ -170,7 +170,7 @@ steps:
     depends:
       - chunk_files
     with:
-      image: registry.home.arpa:8080/notes-rag-ingest:v0.1.0
+      image: registry.home.arpa:8080/notes-rag-ingest:v0.2.0
       env:
         - name: SSL_CERT_FILE
           value: /etc/ssl/internal-ca/ca.crt
