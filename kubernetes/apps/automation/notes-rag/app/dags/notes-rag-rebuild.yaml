@@ -33,7 +33,7 @@ kubernetes:
       type: RuntimeDefault
 
 steps:
-  - id: wipe-memtech
+  - id: wipe_memtech
     type: k8s
     with:
       image: curlimages/curl:8.10.1
@@ -43,20 +43,20 @@ steps:
     command: |-
       sh -c "curl -ksS -X DELETE -H 'X-API-Key: ${MEMTECH_API_KEY}' -H 'Content-Type: application/json' -d '[\"corpus:notes-infra\"]' \"${MEMTECH_BASE_URL}/api/documents/remove-by-tags\""
 
-  - id: wipe-openwebui
+  - id: wipe_openwebui
     type: k8s
     with:
       image: registry.home.arpa:8080/notes-rag-ingest:v0.1.0
       env_from:
         - secret_ref:
             name: openwebui-credentials
-    command: wipe-openwebui-kb
+    command: wipe_openwebui-kb
 
-  - id: clear-state
+  - id: clear_state
     type: k8s
     depends:
-      - wipe-memtech
-      - wipe-openwebui
+      - wipe_memtech
+      - wipe_openwebui
     with:
       image: alpine:3.20
       volumes:
@@ -68,9 +68,9 @@ steps:
           mount_path: /state
     command: 'sh -c "rm -f /state/last-indexed-commit"'
 
-  - id: trigger-ingest
+  - id: trigger_ingest
     depends:
-      - clear-state
+      - clear_state
     # Native Dagu sub-DAG run.
     run: notes-rag-ingest
     params: ""

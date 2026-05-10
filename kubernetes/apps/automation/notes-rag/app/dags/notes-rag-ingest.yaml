@@ -36,7 +36,7 @@ kubernetes:
       type: RuntimeDefault
 
 steps:
-  - id: git-pull
+  - id: git_pull
     type: k8s
     with:
       image: alpine/git:2.45.0
@@ -49,10 +49,10 @@ steps:
           mount_path: /state
     command: 'sh -c "set -e; if [ ! -d /state/notes/.git ]; then git clone --depth=200 https://forge.home.arpa/adam/notes.git /state/notes; fi; git -C /state/notes fetch origin main; git -C /state/notes reset --hard origin/main"'
 
-  - id: compute-diff
+  - id: compute_diff
     type: k8s
     depends:
-      - git-pull
+      - git_pull
     with:
       image: alpine/git:2.45.0
       volumes:
@@ -64,10 +64,10 @@ steps:
           mount_path: /state
     command: 'sh -c "set -e; HEAD_SHA=$(git -C /state/notes rev-parse --short HEAD); echo $HEAD_SHA > /state/head-sha.txt; if [ -s /state/last-indexed-commit ]; then LAST=$(cat /state/last-indexed-commit); git -C /state/notes diff --name-status ${LAST}..HEAD -- local/infra/ > /state/diff.txt; else (cd /state/notes && find local/infra/ -type f -name *.md -printf A\\t%p\\n) > /state/diff.txt; fi"'
 
-  - id: chunk-files
+  - id: chunk_files
     type: k8s
     depends:
-      - compute-diff
+      - compute_diff
     with:
       image: registry.home.arpa:8080/notes-rag-ingest:v0.1.0
       volumes:
@@ -79,10 +79,10 @@ steps:
           mount_path: /state
     command: 'sh -c "SHA=$(cat /state/head-sha.txt); notes-rag-ingest chunk-from-diff --working-tree /state/notes --commit-sha $SHA --subtree local/infra/ < /state/diff.txt > /state/manifest.json"'
 
-  - id: push-openwebui
+  - id: push_openwebui
     type: k8s
     depends:
-      - chunk-files
+      - chunk_files
     with:
       image: registry.home.arpa:8080/notes-rag-ingest:v0.1.0
       env_from:
@@ -95,12 +95,12 @@ steps:
       volume_mounts:
         - name: state
           mount_path: /state
-    command: 'sh -c "notes-rag-ingest push-openwebui < /state/manifest.json"'
+    command: 'sh -c "notes-rag-ingest push_openwebui < /state/manifest.json"'
 
-  - id: push-memtech
+  - id: push_memtech
     type: k8s
     depends:
-      - chunk-files
+      - chunk_files
     with:
       image: registry.home.arpa:8080/notes-rag-ingest:v0.1.0
       env_from:
@@ -113,13 +113,13 @@ steps:
       volume_mounts:
         - name: state
           mount_path: /state
-    command: 'sh -c "notes-rag-ingest push-memtech < /state/manifest.json"'
+    command: 'sh -c "notes-rag-ingest push_memtech < /state/manifest.json"'
 
-  - id: write-state
+  - id: write_state
     type: k8s
     depends:
-      - push-openwebui
-      - push-memtech
+      - push_openwebui
+      - push_memtech
     with:
       image: alpine:3.20
       volumes:
