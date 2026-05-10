@@ -84,7 +84,7 @@ steps:
     # git-invocation time, so the token never lives in clone URLs,
     # env vars, or DAG yaml. The remote URL is reset on every run to
     # scrub any token-embedded URL left behind by earlier deployments.
-    command: 'sh -c "set -e; URL=https://forge.home.arpa/adam/notes.git; if [ ! -d /state/notes/.git ]; then git -c credential.helper=!sh /etc/git-helpers/cred-helper.sh clone --depth=200 $URL /state/notes; fi; git -C /state/notes remote set-url origin $URL; git -C /state/notes -c credential.helper=!sh /etc/git-helpers/cred-helper.sh fetch origin master; git -C /state/notes reset --hard origin/master"'
+    command: 'sh -c "set -e; URL=https://forge.home.arpa/adam/notes.git; if [ ! -d /state/notes/.git ]; then git -c \"credential.helper=!sh /etc/git-helpers/cred-helper.sh\" clone --depth=200 $URL /state/notes; fi; git -C /state/notes remote set-url origin $URL; git -C /state/notes -c \"credential.helper=!sh /etc/git-helpers/cred-helper.sh\" fetch origin master; git -C /state/notes reset --hard origin/master"'
 
   - id: compute_diff
     type: k8s
