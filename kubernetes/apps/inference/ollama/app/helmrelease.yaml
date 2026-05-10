@@ -59,6 +59,13 @@ spec:
       # No-op for bge-m3 — for future chat models
       - name: OLLAMA_KV_CACHE_TYPE
         value: "q8_0"
+      # Cap context (and thus n_batch / compute buffer) — bge-m3 was
+      # padding every forward pass to 4096 tokens regardless of input
+      # length. 512 covers OpenWebUI's typical chunk sizes with headroom
+      # and shrinks the per-request compute buffer ~8x. Revisit if a
+      # consumer needs longer context (RAG with bigger chunks).
+      - name: OLLAMA_CONTEXT_LENGTH
+        value: "512"
 
     resources:
       requests:
