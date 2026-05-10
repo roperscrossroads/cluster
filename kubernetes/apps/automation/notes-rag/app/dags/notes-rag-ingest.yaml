@@ -102,7 +102,10 @@ steps:
         - name: ca
           mount_path: /etc/ssl/internal-ca
           read_only: true
-    command: 'sh -c "set -e; HEAD_SHA=$(git -C /state/notes rev-parse --short HEAD); echo $HEAD_SHA > /state/head-sha.txt; if [ -s /state/last-indexed-commit ]; then LAST=$(cat /state/last-indexed-commit); git -C /state/notes diff --name-status ${LAST}..HEAD -- local/infra/ > /state/diff.txt; else (cd /state/notes && find local/infra/ -type f -name *.md -printf A\\t%p\\n) > /state/diff.txt; fi"'
+    # Empty-tree SHA 4b825dc6... is the well-known git empty tree;
+    # diffing HEAD against it on first run yields a complete A-line list
+    # in standard --name-status format, no busybox-specific find -printf.
+    command: 'sh -c "set -e; HEAD_SHA=$(git -C /state/notes rev-parse --short HEAD); echo $HEAD_SHA > /state/head-sha.txt; if [ -s /state/last-indexed-commit ]; then LAST=$(cat /state/last-indexed-commit); git -C /state/notes diff --name-status ${LAST}..HEAD -- local/infra/ > /state/diff.txt; else git -C /state/notes diff --name-status 4b825dc642cb6eb9a060e54bf8d69288fbee4904 HEAD -- local/infra/ > /state/diff.txt; fi"'
 
   - id: chunk_files
     type: k8s
