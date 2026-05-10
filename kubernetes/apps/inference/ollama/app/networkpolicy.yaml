@@ -1,0 +1,23 @@
+---
+# Restrict Ollama API access to the envoy-internal Gateway only. Any other
+# in-cluster pod (default-namespace probes, accidental wiring, hostile
+# workload) gets ECONNREFUSED at L4. Caller of record is LiteLLM on the
+# proxy LXC, entering via envoy-internal in the network namespace.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ollama-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ollama
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: network
+      ports:
+        - protocol: TCP
+          port: 11434

@@ -1,0 +1,104 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: ollama
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: ollama
+      version: "1.56.0"
+      sourceRef:
+        kind: HelmRepository
+        name: ollama
+  values:
+    replicaCount: 1
+
+    image:
+      repository: ollama/ollama
+      pullPolicy: IfNotPresent
+
+    ollama:
+      port: 11434
+      gpu:
+        enabled: false
+      models:
+        # F16 is the only quant published on the Ollama registry for bge-m3
+        # (verified 2026-05-10). Custom Modelfile quant -> Q8_0 is a future
+        # option if measured throughput is unacceptable.
+        pull:
+          - bge-m3
+        clean: true
+
+    # Pull happens via chart's postStart lifecycle hook (NOT an initContainer),
+    # so the pod becomes Ready as soon as the HTTP server binds, racing the
+    # pull. We push readiness/liveness initialDelaySeconds high so the Ready
+    # signal lines up roughly with pull completion (~30-90s on warm registry,
+    # up to a few minutes worst case for ~568 MB).
+    livenessProbe:
+      initialDelaySeconds: 240
+    readinessProbe:
+      initialDelaySeconds: 180
+
+    extraEnv:
+      # Keep bge-m3 warm forever — no cold-load on every cron tick
+      - name: OLLAMA_KEEP_ALIVE
+        value: "24h"
+      # 2 concurrent embed requests per model (sized for batched RAG indexing)
+      - name: OLLAMA_NUM_PARALLEL
+        value: "2"
+      # Forward-looking: when a small chat model joins, allow both warm
+      - name: OLLAMA_MAX_LOADED_MODELS
+        value: "2"
+      # No-op for bge-m3 (encoder, no KV cache) — for future chat models
+      - name: OLLAMA_FLASH_ATTENTION
+        value: "1"
+      # No-op for bge-m3 — for future chat models
+      - name: OLLAMA_KV_CACHE_TYPE
+        value: "q8_0"
+
+    resources:
+      requests:
+        cpu: 2000m
+        memory: 4Gi
+      limits:
+        # No CPU limit on purpose — CFS throttling tanks bursty batched
+        # embedding throughput on N100. Memory cap prevents runaway loads.
+        memory: 8Gi
+
+    persistentVolume:
+      enabled: true
+      storageClass: zfs-nvmeof-1
+      size: 20Gi
+      accessModes:
+        - ReadWriteOnce
+
+    # PSA: restricted compatibility — chart defaults both context blocks
+    # to {}; we set them explicitly here.
+    podSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      runAsGroup: 1000
+      fsGroup: 1000
+      seccompProfile:
+        type: RuntimeDefault
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: [ALL]
+      # PVC at /root/.ollama needs writes; chart's default mountPath assumes
+      # this. Leaving rootFS writable keeps the chart's pull mechanism happy.
+      readOnlyRootFilesystem: false
+
+    terminationGracePeriodSeconds: 180
+
+    # External HTTPRoute (httproute.yaml) — mirrors the dagu pattern.
+    httpRoute:
+      enabled: false
+    knative:
+      enabled: false
+    autoscaling:
+      enabled: false
+    serviceAccount:
+      create: true
