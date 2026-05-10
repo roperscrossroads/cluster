@@ -72,7 +72,7 @@ steps:
     # subsequent fetches reuse the URL stored in /state/notes/.git/config.
     # The token is on the cluster PV — fine, this is the same PV that
     # holds the cloned source content.
-    command: 'sh -c "set -e; if [ ! -d /state/notes/.git ]; then git clone --depth=200 https://oauth2:$FORGE_TOKEN@forge.home.arpa/adam/notes.git /state/notes; fi; git -C /state/notes fetch origin main; git -C /state/notes reset --hard origin/main"'
+    command: 'sh -c "set -e; if [ ! -d /state/notes/.git ]; then git clone --depth=200 https://oauth2:$FORGE_TOKEN@forge.home.arpa/adam/notes.git /state/notes; fi; git -C /state/notes fetch origin master; git -C /state/notes reset --hard origin/master"'
 
   - id: compute_diff
     type: k8s
