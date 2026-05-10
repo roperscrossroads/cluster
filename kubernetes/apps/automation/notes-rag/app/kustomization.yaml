@@ -18,5 +18,13 @@ configMapGenerator:
     files:
       - dags/notes-rag-ingest.yaml
       - dags/notes-rag-rebuild.yaml
+  # Internal Caddy CA — mounted into step pods so git/curl/httpx all
+  # trust *.home.arpa TLS. Stable name (no hash) since the cert is rare
+  # to rotate and we don't want hash-driven step-pod redeploys.
+  - name: internal-ca
+    files:
+      - ca.crt=internal-ca.crt
+    options:
+      disableNameSuffixHash: true
 generatorOptions:
   disableNameSuffixHash: false

@@ -40,13 +40,22 @@ steps:
     type: k8s
     with:
       image: alpine/git:2.49.1
+      env:
+        - name: GIT_SSL_CAINFO
+          value: /etc/ssl/internal-ca/ca.crt
       volumes:
         - name: state
           persistent_volume_claim:
             claim_name: notes-rag-state
+        - name: ca
+          config_map:
+            name: internal-ca
       volume_mounts:
         - name: state
           mount_path: /state
+        - name: ca
+          mount_path: /etc/ssl/internal-ca
+          read_only: true
     command: 'sh -c "set -e; if [ ! -d /state/notes/.git ]; then git clone --depth=200 https://forge.home.arpa/adam/notes.git /state/notes; fi; git -C /state/notes fetch origin main; git -C /state/notes reset --hard origin/main"'
 
   - id: compute_diff
@@ -55,13 +64,22 @@ steps:
       - git_pull
     with:
       image: alpine/git:2.49.1
+      env:
+        - name: GIT_SSL_CAINFO
+          value: /etc/ssl/internal-ca/ca.crt
       volumes:
         - name: state
           persistent_volume_claim:
             claim_name: notes-rag-state
+        - name: ca
+          config_map:
+            name: internal-ca
       volume_mounts:
         - name: state
           mount_path: /state
+        - name: ca
+          mount_path: /etc/ssl/internal-ca
+          read_only: true
     command: 'sh -c "set -e; HEAD_SHA=$(git -C /state/notes rev-parse --short HEAD); echo $HEAD_SHA > /state/head-sha.txt; if [ -s /state/last-indexed-commit ]; then LAST=$(cat /state/last-indexed-commit); git -C /state/notes diff --name-status ${LAST}..HEAD -- local/infra/ > /state/diff.txt; else (cd /state/notes && find local/infra/ -type f -name *.md -printf A\\t%p\\n) > /state/diff.txt; fi"'
 
   - id: chunk_files
@@ -85,6 +103,9 @@ steps:
       - chunk_files
     with:
       image: registry.home.arpa:8080/notes-rag-ingest:v0.1.0
+      env:
+        - name: SSL_CERT_FILE
+          value: /etc/ssl/internal-ca/ca.crt
       env_from:
         - secret_ref:
             name: openwebui-credentials
@@ -92,9 +113,15 @@ steps:
         - name: state
           persistent_volume_claim:
             claim_name: notes-rag-state
+        - name: ca
+          config_map:
+            name: internal-ca
       volume_mounts:
         - name: state
           mount_path: /state
+        - name: ca
+          mount_path: /etc/ssl/internal-ca
+          read_only: true
     command: 'sh -c "notes-rag-ingest push-openwebui < /state/manifest.json"'
 
   - id: push_memtech
@@ -103,6 +130,9 @@ steps:
       - chunk_files
     with:
       image: registry.home.arpa:8080/notes-rag-ingest:v0.1.0
+      env:
+        - name: SSL_CERT_FILE
+          value: /etc/ssl/internal-ca/ca.crt
       env_from:
         - secret_ref:
             name: memtech-credentials
@@ -110,9 +140,15 @@ steps:
         - name: state
           persistent_volume_claim:
             claim_name: notes-rag-state
+        - name: ca
+          config_map:
+            name: internal-ca
       volume_mounts:
         - name: state
           mount_path: /state
+        - name: ca
+          mount_path: /etc/ssl/internal-ca
+          read_only: true
     command: 'sh -c "notes-rag-ingest push-memtech < /state/manifest.json"'
 
   - id: write_state
