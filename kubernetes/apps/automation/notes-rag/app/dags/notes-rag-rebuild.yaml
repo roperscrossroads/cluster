@@ -12,6 +12,7 @@ kubernetes:
   service_account: notes-rag-runner
   image_pull_secrets:
     - internal-registry-auth
+  backoff_limit: 0
   resources:
     requests:
       cpu: "100m"
@@ -22,6 +23,7 @@ kubernetes:
   security_context:
     run_as_non_root: true
     run_as_user: 1000
+    run_as_group: 1000
     allow_privilege_escalation: false
     capabilities:
       drop: [ALL]

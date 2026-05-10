@@ -38,8 +38,22 @@ kubernetes:
     limits:
       cpu: "500m"
       memory: "512Mi"
+  # Per-step container security context — drops PodSecurity audit
+  # warnings against the `restricted` profile in step pod logs.
+  # The chunker, alpine/git, and curlimages/curl images all run
+  # fine as a non-root uid; the PV is brought to fs_group ownership
+  # automatically by k8s on volume mount.
+  security_context:
+    run_as_non_root: true
+    run_as_user: 1000
+    run_as_group: 1000
+    allow_privilege_escalation: false
+    capabilities:
+      drop: [ALL]
+    seccomp_profile:
+      type: RuntimeDefault
   pod_security_context:
-    fs_group: 0
+    fs_group: 1000
     seccomp_profile:
       type: RuntimeDefault
 
