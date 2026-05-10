@@ -91,5 +91,5 @@ steps:
     depends:
       - clear_state
     # Native Dagu sub-DAG run.
-    run: notes-rag-ingest
+    call: notes-rag-ingest
     params: ""
