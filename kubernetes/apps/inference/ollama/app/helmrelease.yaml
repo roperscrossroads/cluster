@@ -23,12 +23,31 @@ spec:
       port: 11434
       gpu:
         enabled: false
+      # Override chart default (/root/.ollama). The upstream image runs as
+      # uid 1000 (ubuntu) with HOME=/home/ubuntu and /root mode 0700; with
+      # the default mountPath the PVC was mounted on a directory the runtime
+      # user couldn't traverse, so Ollama wrote models to the container's
+      # ephemeral overlayfs at $HOME/.ollama/models — meaning every pod
+      # restart re-pulled the model. Mounting at $HOME/.ollama keeps the
+      # PVC actually useful.
+      mountPath: /home/ubuntu/.ollama
       models:
-        # F16 is the only quant published on the Ollama registry for bge-m3
-        # (verified 2026-05-10). Custom Modelfile quant -> Q8_0 is a future
-        # option if measured throughput is unacceptable.
+        # Pull the Q8_0 GGUF straight from HF (ggml-org's official quant).
+        # Same weights as LM Studio serves on the GPU host -- keeps the
+        # `embed-m3` LiteLLM group's primary + fallback paths in the same
+        # vector space (verified at setup via cosine-sim probe).
+        # Q8_0 on N100 also benefits from AVX-VNNI int8 acceleration and
+        # halves the model buffer (~570 MiB vs F16's 1097 MiB), easing
+        # the memory-bandwidth bottleneck identified in perf testing.
         pull:
-          - bge-m3
+          - hf.co/ggml-org/bge-m3-Q8_0-GGUF
+        # Alias the HF-pulled model to the short name `bge-m3` so LiteLLM
+        # and other callers can use `ollama/bge-m3` instead of the full
+        # hf.co/... path.
+        create:
+          - name: bge-m3
+            template: |
+              FROM hf.co/ggml-org/bge-m3-Q8_0-GGUF
         clean: true
 
     # Pull happens via chart's postStart lifecycle hook (NOT an initContainer),
