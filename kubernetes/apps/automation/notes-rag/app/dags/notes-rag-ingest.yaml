@@ -39,7 +39,7 @@ steps:
   - id: git_pull
     type: k8s
     with:
-      image: alpine/git:2.45.0
+      image: alpine/git:2.49.1
       volumes:
         - name: state
           persistent_volume_claim:
@@ -54,7 +54,7 @@ steps:
     depends:
       - git_pull
     with:
-      image: alpine/git:2.45.0
+      image: alpine/git:2.49.1
       volumes:
         - name: state
           persistent_volume_claim:
@@ -95,7 +95,7 @@ steps:
       volume_mounts:
         - name: state
           mount_path: /state
-    command: 'sh -c "notes-rag-ingest push_openwebui < /state/manifest.json"'
+    command: 'sh -c "notes-rag-ingest push-openwebui < /state/manifest.json"'
 
   - id: push_memtech
     type: k8s
@@ -113,7 +113,7 @@ steps:
       volume_mounts:
         - name: state
           mount_path: /state
-    command: 'sh -c "notes-rag-ingest push_memtech < /state/manifest.json"'
+    command: 'sh -c "notes-rag-ingest push-memtech < /state/manifest.json"'
 
   - id: write_state
     type: k8s
