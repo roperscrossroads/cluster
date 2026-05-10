@@ -43,17 +43,21 @@ kubernetes:
   # The chunker, alpine/git, and curlimages/curl images all run
   # fine as a non-root uid; the PV is brought to fs_group ownership
   # automatically by k8s on volume mount.
+  # The notes-rag-state PVC is NFS-backed (root_squash maps root → 65534
+  # on the server). State files written by earlier root-runs already
+  # belong to uid 65534 there, so we run step pods as that uid; trying
+  # to chown across the NFS export fails with "Operation not permitted".
   security_context:
     run_as_non_root: true
-    run_as_user: 1000
-    run_as_group: 1000
+    run_as_user: 65534
+    run_as_group: 65534
     allow_privilege_escalation: false
     capabilities:
       drop: [ALL]
     seccomp_profile:
       type: RuntimeDefault
   pod_security_context:
-    fs_group: 1000
+    fs_group: 65534
     seccomp_profile:
       type: RuntimeDefault
 
