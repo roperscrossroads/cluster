@@ -26,6 +26,11 @@ kubernetes:
   service_account: notes-rag-runner
   image_pull_secrets:
     - internal-registry-auth
+  # Prevent k8s-level retries on a step Job. Dagu's workflow-level
+  # error handling is what we want; a per-Job retry mid-push duplicates
+  # uploads (each retry creates new files in OpenWebUI's global Files
+  # store, since chunk content is unique-per-chunk by design).
+  backoff_limit: 0
   resources:
     requests:
       cpu: "100m"
