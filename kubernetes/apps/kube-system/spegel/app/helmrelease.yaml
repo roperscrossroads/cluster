@@ -20,6 +20,16 @@ spec:
       # Zot: containerd asked spegel, spegel had no cached layer, and
       # nothing reached the real registry.
       prependExisting: true
+      # Spegel had already moved the Talos-written
+      # /etc/cri/conf.d/hosts/registry.home.arpa:8080/hosts.toml to
+      # _backup/ before we set prependExisting=true, so it no longer
+      # sees the upstream to preserve. List the internal registry
+      # explicitly + add it as an additional mirror target so spegel
+      # writes both itself AND the upstream into the per-host file.
+      mirroredRegistries:
+        - http://registry.home.arpa:8080
+      additionalMirrorTargets:
+        - http://registry.home.arpa:8080
     service:
       registry:
         hostPort: 29999
