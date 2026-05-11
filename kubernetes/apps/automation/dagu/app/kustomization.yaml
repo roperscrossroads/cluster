@@ -5,3 +5,9 @@ resources:
   - ./helmrepository.yaml
   - ./helmrelease.yaml
   - ./httproute.yaml
+  # SSH deploy key for the git-sync sidecar that pulls dev/dagu-dags
+  # into the scheduler pod (mounted at /etc/git-secret/ via the inline
+  # kustomize patch in helmrelease.yaml's postRenderers). Lives with
+  # dagu (not notes-rag) so the secret is in place before the chart
+  # rolls — notes-rag's kustomization depends on dagu being ready.
+  - ./secrets/dagu-dags-ssh.sops.yaml
