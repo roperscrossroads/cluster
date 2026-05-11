@@ -15,10 +15,12 @@
 name: notes-rag-ingest
 description: Re-ingest ~/notes/local/infra into OpenWebUI KB + memtech every 15 min
 type: graph
-# Suspended 2026-05-09 during cybersecurity hardening pass — see
-# ~/.claude/plans/i-want-to-clean-nifty-cake.md. Re-enable to
-# "*/15 * * * *" in Phase H after verification.
-schedule: ""
+# Re-enabled 2026-05-11 after bge-m3 cutover + clean reindex baseline
+# (2054 chunks in OpenWebUI, 2276 in memtech). last-indexed-commit is
+# tracked so each tick is incremental. Known limitation: push step
+# is not idempotent under partial-success — see
+# ~/notes/local/infra/services/notes-rag.md "Known limitations".
+schedule: "*/15 * * * *"
 max_active_runs: 1
 
 kubernetes:
