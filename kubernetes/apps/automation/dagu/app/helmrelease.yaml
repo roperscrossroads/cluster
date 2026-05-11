@@ -62,6 +62,9 @@ spec:
                   volumeMounts:
                     - {name: data, mountPath: /data}
                     - {name: git-sync-secret, mountPath: /etc/git-secret, readOnly: true}
+                    # Writable /tmp for git's transient gitconfig + index
+                    # while keeping the container root fs read-only.
+                    - {name: git-sync-tmp, mountPath: /tmp}
               - op: add
                 path: /spec/template/spec/volumes/-
                 value:
@@ -69,6 +72,11 @@ spec:
                   secret:
                     secretName: dagu-dags-ssh
                     defaultMode: 0400
+              - op: add
+                path: /spec/template/spec/volumes/-
+                value:
+                  name: git-sync-tmp
+                  emptyDir: {medium: Memory, sizeLimit: 64Mi}
   values:
     image:
       repository: ghcr.io/dagucloud/dagu
