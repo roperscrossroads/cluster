@@ -5,6 +5,13 @@ metadata:
   name: dagu
 spec:
   interval: 1h
+  # Don't auto-rollback on upgrade timeout. The git-sync sidecar may
+  # CrashLoop transiently while we iterate on its config, but rolling
+  # back wipes the very fixes we're applying. Keep the latest spec.
+  upgrade:
+    remediation:
+      retries: 0
+      remediateLastFailure: false
   chart:
     spec:
       chart: dagu
