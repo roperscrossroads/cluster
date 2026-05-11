@@ -12,6 +12,14 @@ spec:
     spegel:
       containerdSock: /run/containerd/containerd.sock
       containerdRegistryConfigPath: /etc/cri/conf.d/hosts
+      # Keep Talos's machine-config mirrors as fallback hosts. Without
+      # this, spegel replaces the per-registry hosts.toml with one that
+      # only points back at itself, and any image not already on a node
+      # 404s instead of falling through to the upstream registry. Hit
+      # 2026-05-11 when pushing notes-rag-ingest:v0.2.3 to the internal
+      # Zot: containerd asked spegel, spegel had no cached layer, and
+      # nothing reached the real registry.
+      prependExisting: true
     service:
       registry:
         hostPort: 29999
