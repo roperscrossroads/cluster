@@ -44,8 +44,14 @@ spec:
         # Alias the HF-pulled model to the short name `bge-m3` so LiteLLM
         # and other callers can use `ollama/bge-m3` instead of the full
         # hf.co/... path.
+        # NOTE: name MUST include the `:latest` tag explicitly. The chart's
+        # `clean: true` allowlist auto-appends `:latest` to pull entries
+        # but NOT to create entries — without an explicit tag, `ollama list`
+        # shows `bge-m3:latest`, the allowlist contains bare `bge-m3`, the
+        # exact-match grep fails, and clean removes the alias right after
+        # we create it. Tagging here keeps both names consistent.
         create:
-          - name: bge-m3
+          - name: bge-m3:latest
             template: |
               FROM hf.co/ggml-org/bge-m3-Q8_0-GGUF
         clean: true
