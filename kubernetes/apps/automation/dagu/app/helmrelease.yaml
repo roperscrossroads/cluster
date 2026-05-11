@@ -78,7 +78,10 @@ spec:
                   name: git-sync-secret
                   secret:
                     secretName: dagu-dags-ssh
-                    defaultMode: 0400
+                    # 0444 (world-readable). Secret files are owned by
+                    # root:root regardless of pod runAsUser; 0400 would
+                    # mean git-sync (uid 65534) can't read them at all.
+                    defaultMode: 0444
               - op: add
                 path: /spec/template/spec/volumes/-
                 value:
