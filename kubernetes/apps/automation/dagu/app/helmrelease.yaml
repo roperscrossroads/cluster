@@ -38,6 +38,40 @@ spec:
               kind: Deployment
               name: dagu-scheduler
             patch: |
+              # initContainer: clone the repo once *before* the scheduler
+              # starts. Without this, the scheduler's startup logic races
+              # the sidecar and creates DAGU_DAGS_DIR as a real directory
+              # (populated with chart example DAGs), which then blocks
+              # git-sync from managing `current` as a symlink.
+              - op: add
+                path: /spec/template/spec/initContainers
+                value:
+                  - name: git-sync-init
+                    image: registry.k8s.io/git-sync/git-sync:v4.4.1
+                    imagePullPolicy: IfNotPresent
+                    env:
+                      - {name: GITSYNC_REPO, value: "ssh://forgejo@gitd.home.arpa/dev/dagu-dags.git"}
+                      - {name: GITSYNC_REF, value: "main"}
+                      - {name: GITSYNC_ROOT, value: "/data/git/dagu-dags"}
+                      - {name: GITSYNC_LINK, value: "current"}
+                      - {name: GITSYNC_ONE_TIME, value: "true"}
+                      - {name: GITSYNC_SSH_KEY_FILE, value: "/etc/git-secret/ssh-key"}
+                      - {name: GITSYNC_SSH_KNOWN_HOSTS_FILE, value: "/etc/git-secret/known_hosts"}
+                      - {name: GITSYNC_VERBOSE, value: "2"}
+                    securityContext:
+                      runAsNonRoot: true
+                      runAsUser: 65534
+                      runAsGroup: 65534
+                      allowPrivilegeEscalation: false
+                      readOnlyRootFilesystem: true
+                      capabilities: {drop: [ALL]}
+                    resources:
+                      requests: {cpu: "10m", memory: "32Mi"}
+                      limits:   {memory: "128Mi"}
+                    volumeMounts:
+                      - {name: data, mountPath: /data}
+                      - {name: git-sync-secret, mountPath: /etc/git-secret, readOnly: true}
+                      - {name: git-sync-tmp, mountPath: /tmp}
               - op: add
                 path: /spec/template/spec/containers/-
                 value:
