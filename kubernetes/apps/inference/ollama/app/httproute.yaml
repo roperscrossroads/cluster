@@ -1,21 +1,28 @@
 ---
-# Internal-only ingress for cluster Ollama. Hostname resolves on public DNS
-# (Cloudflare, via external-dns) but CNAMEs to internal.${SECRET_DOMAIN} ->
-# the envoy-internal LB IP, unreachable from the internet. Consumers
-# (LiteLLM on the proxy LXC) hit this route directly — no public-facing
-# proxy in front. Authelia is intentionally NOT used here: Ollama lacks
-# auth integration and Authelia is browser-SSO only, wrong tool for the
-# programmatic API surface. NetworkPolicy gates abuse.
+# Internal-only ingress for cluster Ollama, on the http listener of
+# envoy-internal. We deliberately do NOT use the *-int.${SECRET_DOMAIN}
+# pattern that other cluster routes use, because that hostname resolves
+# via public Cloudflare DNS — and Cloudflare proxies it (orange cloud),
+# returning Cloudflare edge IPs, which then can't reach our RFC1918
+# origin → 520. Internal callers would need to hit the LB IP directly
+# (no nice hostname) or go through Caddy on auth-manage (extra hop).
+#
+# Instead: use `ollama.home.arpa`, registered in the internal dnsmasq
+# (~/infra-new/network/dns/vars/dns-records.yml) as A → the
+# envoy-internal LB IP (172.16.21.101). All home-network callers
+# (LiteLLM, kubectl from workstations, etc.) resolve directly to the
+# cluster LB without proxying. HTTP only — internal traffic doesn't
+# need TLS on this hop. NetworkPolicy still gates pod-level abuse.
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
   name: ollama
 spec:
-  hostnames: ["ollama-int.${SECRET_DOMAIN}"]
+  hostnames: ["ollama.home.arpa"]
   parentRefs:
     - name: envoy-internal
       namespace: network
-      sectionName: https
+      sectionName: http
   rules:
     - backendRefs:
         - name: ollama
