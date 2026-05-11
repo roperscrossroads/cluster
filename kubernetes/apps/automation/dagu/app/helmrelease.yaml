@@ -12,6 +12,60 @@ spec:
       sourceRef:
         kind: HelmRepository
         name: dagu
+  # The chart exposes only `extraEnv` for customisation — no sidecar /
+  # extraVolumes hook. Inject the git-sync sidecar via Flux postRenderer
+  # (kustomize strategic-merge patch on the scheduler Deployment).
+  #
+  # The sidecar polls `dev/dagu-dags` every 10s and writes the working
+  # tree to /data/git/dagu-dags/ on the shared dagu-data RWX PVC. The
+  # symlink `current` points at the latest checked-out SHA. All four
+  # Dagu components (scheduler/ui/coordinator/worker) mount the same
+  # PVC, so they all read the same DAG tree via DAGU_DAGS_DIR below.
+  #
+  # SSH deploy key + known_hosts come from the `dagu-dags-ssh` Secret
+  # (lives in ~/.../notes-rag/app/secrets/dagu-dags-ssh.sops.yaml).
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              kind: Deployment
+              name: dagu-scheduler
+            patch: |
+              - op: add
+                path: /spec/template/spec/containers/-
+                value:
+                  name: git-sync
+                  image: registry.k8s.io/git-sync/git-sync:v4.4.1
+                  imagePullPolicy: IfNotPresent
+                  env:
+                    - {name: GITSYNC_REPO, value: "ssh://forgejo@gitd.home.arpa/dev/dagu-dags.git"}
+                    - {name: GITSYNC_REF, value: "main"}
+                    - {name: GITSYNC_PERIOD, value: "10s"}
+                    - {name: GITSYNC_ROOT, value: "/data/git/dagu-dags"}
+                    - {name: GITSYNC_LINK, value: "current"}
+                    - {name: GITSYNC_SSH_KEY_FILE, value: "/etc/git-secret/ssh-key"}
+                    - {name: GITSYNC_SSH_KNOWN_HOSTS_FILE, value: "/etc/git-secret/known_hosts"}
+                    - {name: GITSYNC_VERBOSE, value: "2"}
+                  securityContext:
+                    runAsNonRoot: true
+                    runAsUser: 65533
+                    runAsGroup: 65533
+                    allowPrivilegeEscalation: false
+                    readOnlyRootFilesystem: true
+                    capabilities: {drop: [ALL]}
+                  resources:
+                    requests: {cpu: "10m", memory: "32Mi"}
+                    limits:   {memory: "128Mi"}
+                  volumeMounts:
+                    - {name: data, mountPath: /data}
+                    - {name: git-sync-secret, mountPath: /etc/git-secret, readOnly: true}
+              - op: add
+                path: /spec/template/spec/volumes/-
+                value:
+                  name: git-sync-secret
+                  secret:
+                    secretName: dagu-dags-ssh
+                    defaultMode: 0400
   values:
     image:
       repository: ghcr.io/dagucloud/dagu
@@ -44,6 +98,12 @@ spec:
         value: "true"
       - name: DAGU_TZ
         value: "America/New_York"
+      # Point all four Dagu components (scheduler/ui/coordinator/worker)
+      # at the git-sync output path. The sidecar (see postRenderers
+      # above) clones dev/dagu-dags into /data/git/dagu-dags/ and
+      # maintains the `current` symlink pointing at the latest SHA.
+      - name: DAGU_DAGS_DIR
+        value: "/data/git/dagu-dags/current/dags"
 
     # Single instance of the control-plane components. Workers scale separately.
     scheduler:

@@ -10,15 +10,17 @@ resources:
   - ./secrets/memtech-credentials.sops.yaml
   - ./secrets/openwebui-credentials.sops.yaml
   - ./secrets/forgejo-credentials.sops.yaml
+  # SSH deploy key for the dagu-scheduler's git-sync sidecar to clone
+  # `dev/dagu-dags` (source of truth for all DAG yamls). The HelmRelease
+  # for dagu patches in the sidecar + mounts this secret.
+  - ./secrets/dagu-dags-ssh.sops.yaml
 
-# Generated ConfigMap holding the DAG yamls. Hashed name → flux re-applies
-# whenever DAG content changes. Read by the dags-syncer (or by hand-copying
-# files to /data/dags via kubectl cp until the syncer Deployment ships).
+# DAG yamls now live in `dev/dagu-dags` on internal Forgejo, synced into
+# the dagu-scheduler pod by a git-sync sidecar (added via Flux
+# postRenderer on the dagu HelmRelease). The chart's `extraEnv` sets
+# DAGU_DAGS_DIR=/data/git/dagu-dags/current/dags so all four Dagu
+# components (scheduler/ui/coordinator/worker) read from the synced tree.
 configMapGenerator:
-  - name: notes-rag-dags
-    files:
-      - dags/notes-rag-ingest.yaml
-      - dags/notes-rag-rebuild.yaml
   # Internal Caddy CA — mounted into step pods so git/curl/httpx all
   # trust internal *.lab TLS. Stable name (no hash) since the cert is rare
   # to rotate and we don't want hash-driven step-pod redeploys.
