@@ -1,28 +1,37 @@
 ---
-# Internal-only ingress for cluster Ollama, on the http listener of
-# envoy-internal. We deliberately do NOT use the *-int.${SECRET_DOMAIN}
-# pattern that other cluster routes use, because that hostname resolves
-# via public Cloudflare DNS — and Cloudflare proxies it (orange cloud),
-# returning Cloudflare edge IPs, which then can't reach our RFC1918
-# origin → 520. Internal callers would need to hit the LB IP directly
-# (no nice hostname) or go through Caddy on auth-manage (extra hop).
+# Internal-only ingress for cluster Ollama on the https listener of
+# envoy-internal. The hostname follows the cluster's `*-int.${SECRET_DOMAIN}`
+# pattern (mirrors dagu-int) and is served by the gateway's *.${SECRET_DOMAIN}
+# wildcard cert.
 #
-# Instead: use `ollama.home.arpa`, registered in the internal dnsmasq
-# (~/infra-new/network/dns/vars/dns-records.yml) as A → the
-# envoy-internal LB IP (172.16.21.101). All home-network callers
-# (LiteLLM, kubectl from workstations, etc.) resolve directly to the
-# cluster LB without proxying. HTTP only — internal traffic doesn't
-# need TLS on this hop. NetworkPolicy still gates pod-level abuse.
+# Public DNS for this name returns Cloudflare-proxied edge IPs that
+# can't reach the RFC1918 origin (520 from edge). Internal callers
+# instead use a split-horizon override in dnsmasq that resolves the
+# hostname directly to the envoy-internal LB IP — bypassing the
+# proxy and hitting the cluster gateway over the home network.
+# See `~/infra-new/network/dns/vars/dns-records.yml` (split_horizon_overrides).
+#
+# Why https not http: the http listener has a global https-redirect
+# HTTPRoute attached (`network/envoy-gateway/.../envoy.yaml`) that
+# wins over per-route hostname matching for non-specific http traffic
+# in this Envoy Gateway version, returning 301 instead of routing.
+# Using the https listener avoids that path. Cert validates because
+# the SAN is *.${SECRET_DOMAIN}.
+#
+# Reach is gated by:
+#   - NetworkPolicy (pod-level): only `network` ns can ingress to ollama pod
+#   - OPNsense firewall (L3): only specific source-IP exceptions allowed
+#     compute → k8s LB (litellm-compute is one of those exceptions).
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
   name: ollama
 spec:
-  hostnames: ["ollama.home.arpa"]
+  hostnames: ["ollama-int.${SECRET_DOMAIN}"]
   parentRefs:
     - name: envoy-internal
       namespace: network
-      sectionName: http
+      sectionName: https
   rules:
     - backendRefs:
         - name: ollama
