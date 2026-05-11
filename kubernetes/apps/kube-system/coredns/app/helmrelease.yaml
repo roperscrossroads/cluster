@@ -20,6 +20,24 @@ spec:
       clusterIP: "10.43.0.10"
     replicaCount: 2
     servers:
+      # Internal estate hosts on `home.arpa` are served by dnsmasq on
+      # dnsdhcp-compute (172.16.20.40), which the talos /etc/resolv.conf
+      # doesn't see (cluster nodes resolve via a public upstream).
+      # Explicitly forward `home.arpa` so step pods can reach
+      # webui.home.arpa, memtech-dashboard.home.arpa, etc., without
+      # per-pod hostAliases. Block below (`.`) keeps handling everything
+      # else via the default `forward . /etc/resolv.conf`.
+      - zones:
+          - zone: home.arpa
+            scheme: dns://
+            use_tcp: true
+        port: 53
+        plugins:
+          - name: errors
+          - name: cache
+            parameters: "30"
+          - name: forward
+            parameters: . 172.16.20.40
       - zones:
           - zone: .
             scheme: dns://
