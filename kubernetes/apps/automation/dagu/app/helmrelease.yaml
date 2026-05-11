@@ -48,8 +48,11 @@ spec:
                     - {name: GITSYNC_VERBOSE, value: "2"}
                   securityContext:
                     runAsNonRoot: true
-                    runAsUser: 65533
-                    runAsGroup: 65533
+                    # Match the chart's container UID (nobody=65534) so we
+                    # can write into /data/git/dagu-dags on the shared
+                    # PVC where /data/git already exists owned by nobody.
+                    runAsUser: 65534
+                    runAsGroup: 65534
                     allowPrivilegeEscalation: false
                     readOnlyRootFilesystem: true
                     capabilities: {drop: [ALL]}
