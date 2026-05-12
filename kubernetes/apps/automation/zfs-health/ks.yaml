@@ -17,7 +17,3 @@ spec:
     namespace: flux-system
   targetNamespace: automation
   wait: false
-  decryption:
-    provider: sops
-    secretRef:
-      name: sops-age
