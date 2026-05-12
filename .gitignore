@@ -28,3 +28,6 @@ Thumbs.db
 # Decrypted SOPS output
 *.dec.yaml
 *.dec.yml
+
+# Local Claude Code tooling state
+.claude/
