@@ -1,0 +1,16 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+commonMetadata:
+  labels:
+    app.kubernetes.io/name: zfs-health
+    app.kubernetes.io/instance: automation
+
+resources:
+  - pvc.yaml
+  - secrets/zfs-monitor-ssh.sops.yaml
+
+# Uncomment when ready:
+# - secrets/ops-data-credentials.sops.yaml
+# - secrets/litellm-zfs-key.sops.yaml
