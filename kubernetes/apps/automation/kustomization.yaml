@@ -13,3 +13,4 @@ resources:
   - ./zfs-health/ks.yaml
   - ./smart-health/ks.yaml
   - ./kuma-health/ks.yaml
+  - ./cluster-health/ks.yaml
