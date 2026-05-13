@@ -9,3 +9,4 @@ commonMetadata:
 
 resources:
   - pvc.yaml
+  - secrets/litellm-smart-health-key.sops.yaml
