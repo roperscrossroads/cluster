@@ -1,0 +1,17 @@
+---
+# Sibling to ops-data-work (used by zfs-health). The two DAGs each have
+# their own workdir so a long-running step in one doesn't block the
+# other's PVC writes, and so each DAG's /data/raw/ is scoped to its
+# own data without filename collisions.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ops-data-smart-work
+  namespace: automation
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: zfs-nfs-1
+  resources:
+    requests:
+      storage: 2Gi

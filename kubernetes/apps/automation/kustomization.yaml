@@ -11,3 +11,4 @@ resources:
   - ./dagu/ks.yaml
   - ./notes-rag/ks.yaml
   - ./zfs-health/ks.yaml
+  - ./smart-health/ks.yaml
