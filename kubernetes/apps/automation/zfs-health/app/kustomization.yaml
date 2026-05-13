@@ -11,5 +11,4 @@ resources:
   - pvc.yaml
   - secrets/zfs-monitor-ssh.sops.yaml
   - secrets/ops-data-credentials.sops.yaml
-  - secrets/litellm-zfs-key.sops.yaml
   - secrets/litellm-zfs-health-key.sops.yaml
