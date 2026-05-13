@@ -10,7 +10,5 @@ commonMetadata:
 resources:
   - pvc.yaml
   - secrets/zfs-monitor-ssh.sops.yaml
-
-# Uncomment when ready:
-# - secrets/ops-data-credentials.sops.yaml
-# - secrets/litellm-zfs-key.sops.yaml
+  - secrets/ops-data-credentials.sops.yaml
+  - secrets/litellm-zfs-key.sops.yaml
