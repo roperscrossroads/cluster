@@ -162,9 +162,15 @@ spec:
       size: 20Gi
       storageClass: zfs-nfs-1
 
-    # Enable Steward (built-in AI assistant). Models are configured in the UI
-    # at /agent-settings — point at LiteLLM (OpenAI-compatible base URL) when
-    # ready. Toggle off here if you'd rather opt in via the UI on first login.
+    # Enable Steward (built-in AI assistant). The model entries themselves
+    # are configured at /agent-settings in the UI (one JSON per model under
+    # /data/agent/models/ on the RWX PVC). The vars below seed the values
+    # that go in the form: Base URL, API Key (the dagu-steward LiteLLM
+    # vkey), and a default model alias to start with. The same vars are
+    # available to `dagu agent` invocations from inside any pod.
+    #
+    # chart's extraEnv goes through `toYaml` into the container env block,
+    # so secretKeyRef is supported directly here — no postRenderer needed.
     extraEnv:
       - name: DAGU_AGENT_ENABLED
         value: "true"
@@ -176,6 +182,26 @@ spec:
       # maintains the `current` symlink pointing at the latest SHA.
       - name: DAGU_DAGS_DIR
         value: "/data/git/dagu-dags/current/dags"
+      # LiteLLM connection details for the Steward agent / `dagu agent`.
+      # The agent UI stores its own copy of these inside model JSON files
+      # once configured at /agent-settings — these env vars exist so you
+      # can `kubectl exec ... env` to find the values when filling the
+      # form, and so `dagu agent` invocations have them available.
+      - name: LITELLM_BASE_URL
+        valueFrom:
+          secretKeyRef:
+            name: litellm-dagu-steward-key
+            key: endpoint
+      - name: LITELLM_DAGU_STEWARD_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: litellm-dagu-steward-key
+            key: api-key
+      - name: LITELLM_DAGU_STEWARD_DEFAULT_MODEL
+        valueFrom:
+          secretKeyRef:
+            name: litellm-dagu-steward-key
+            key: model
 
     # Single instance of the control-plane components. Workers scale separately.
     scheduler:
