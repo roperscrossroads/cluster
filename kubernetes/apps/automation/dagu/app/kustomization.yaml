@@ -13,7 +13,7 @@ resources:
   - ./secrets/dagu-dags-ssh.sops.yaml
   # LiteLLM virtual key for Steward (built-in UI agent) and the
   # `dagu agent` CLI. Allowlist on the LiteLLM side is local-first
-  # (qwen3-coder-30b + granite-4-h-tiny + other local groups) with
+  # (qwen3.6-27b + granite-4-h-tiny + gemma-4-e4b) with
   # anthropic-haiku as a cheap-fast fallback. Sourced from the
   # dagu-steward vkey in ~/infra-new/secrets/litellm-virtual-keys.sops.yaml.
   - ./secrets/litellm-dagu-steward-key.sops.yaml
