@@ -114,6 +114,30 @@ spec:
                 value:
                   name: git-sync-tmp
                   emptyDir: {medium: Memory, sizeLimit: 64Mi}
+              # Replace the chart's HTTP /health livenessProbe with an exec
+              # probe that exercises the scheduler loop. The chart's probe
+              # stays green during dagu's known silent-hang failure mode
+              # (scheduler loop wedges; the HTTP server keeps responding),
+              # so kubelet never restarts the pod. The scheduler updates
+              # /data/scheduler/state.json on every tick (~once a minute),
+              # so its mtime is a reliable liveness signal.
+              # Threshold: 300s stale fails the probe; with periodSeconds=60
+              # and failureThreshold=3, kubelet restarts after ~3 consecutive
+              # failures past the threshold = ~7-8 min total silence.
+              # The HTTP /health readinessProbe (set by the chart) stays as-is.
+              - op: replace
+                path: /spec/template/spec/containers/0/livenessProbe
+                value:
+                  exec:
+                    command:
+                      - sh
+                      - -c
+                      - "test $(($(date +%s) - $(stat -c %Y /data/scheduler/state.json))) -lt 300"
+                  initialDelaySeconds: 90
+                  periodSeconds: 60
+                  timeoutSeconds: 10
+                  failureThreshold: 3
+                  successThreshold: 1
   values:
     image:
       repository: ghcr.io/dagucloud/dagu
