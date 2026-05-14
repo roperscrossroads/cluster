@@ -4,9 +4,9 @@ kind: Kustomization
 
 commonMetadata:
   labels:
-    app.kubernetes.io/name: smart-health
+    app.kubernetes.io/name: health-cluster
     app.kubernetes.io/instance: automation
 
 resources:
-  - pvc.yaml
-  - secrets/litellm-smart-health-key.sops.yaml
+  - rbac.yaml
+  - secrets/litellm-cluster-health-key.sops.yaml

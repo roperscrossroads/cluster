@@ -4,7 +4,7 @@ kind: Kustomization
 
 commonMetadata:
   labels:
-    app.kubernetes.io/name: kuma-health
+    app.kubernetes.io/name: health-kuma
     app.kubernetes.io/instance: automation
 
 resources:

@@ -4,7 +4,7 @@ kind: Kustomization
 
 commonMetadata:
   labels:
-    app.kubernetes.io/name: zfs-health
+    app.kubernetes.io/name: health-zfs
     app.kubernetes.io/instance: automation
 
 resources:

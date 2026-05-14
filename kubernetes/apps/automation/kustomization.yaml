@@ -10,7 +10,7 @@ resources:
   - ./namespace.yaml
   - ./dagu/ks.yaml
   - ./notes-rag/ks.yaml
-  - ./zfs-health/ks.yaml
-  - ./smart-health/ks.yaml
-  - ./kuma-health/ks.yaml
-  - ./cluster-health/ks.yaml
+  - ./health-zfs/ks.yaml
+  - ./health-smart/ks.yaml
+  - ./health-kuma/ks.yaml
+  - ./health-cluster/ks.yaml
