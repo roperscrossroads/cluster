@@ -1,0 +1,16 @@
+---
+# Workdir for the health-cluster DAG. Previously shared the
+# ops-data-work PVC with health-zfs; split out 2026-05-14 so each
+# DAG owns its own clone of dev/ops-data.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ops-data-health-cluster-work
+  namespace: automation
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: zfs-nfs-1
+  resources:
+    requests:
+      storage: 2Gi

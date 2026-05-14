@@ -8,5 +8,6 @@ commonMetadata:
     app.kubernetes.io/instance: automation
 
 resources:
+  - pvc.yaml
   - rbac.yaml
-  - secrets/litellm-cluster-health-key.sops.yaml
+  - secrets/litellm-health-cluster-key.sops.yaml

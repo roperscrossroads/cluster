@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: ops-data-work
+  name: ops-data-health-zfs-work
   namespace: automation
 spec:
   accessModes:

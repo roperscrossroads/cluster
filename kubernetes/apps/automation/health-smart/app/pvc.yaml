@@ -1,12 +1,12 @@
 ---
-# Sibling to ops-data-work (used by health-zfs). The two DAGs each have
+# Sibling to ops-data-health-zfs-work. The two DAGs each have
 # their own workdir so a long-running step in one doesn't block the
 # other's PVC writes, and so each DAG's /data/raw/ is scoped to its
 # own data without filename collisions.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: ops-data-smart-work
+  name: ops-data-health-smart-work
   namespace: automation
 spec:
   accessModes:

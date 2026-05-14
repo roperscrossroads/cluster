@@ -4,10 +4,8 @@ kind: Kustomization
 
 commonMetadata:
   labels:
-    app.kubernetes.io/name: health-zfs
+    app.kubernetes.io/name: ops-data-credentials
     app.kubernetes.io/instance: automation
 
 resources:
-  - pvc.yaml
-  - secrets/zfs-monitor-ssh.sops.yaml
-  - secrets/litellm-health-zfs-key.sops.yaml
+  - secrets/ops-data-credentials.sops.yaml

@@ -1,11 +1,12 @@
 ---
-# Workdir for the health-kuma DAG. Sibling to ops-data-work and
-# ops-data-smart-work; each DAG owns its own clone of dev/ops-data
-# so concurrent commits don't fight over the same working tree.
+# Workdir for the health-kuma DAG. Sibling to the other per-DAG workdirs
+# (ops-data-health-{zfs,smart,cluster}-work); each DAG owns its own clone
+# of dev/ops-data so concurrent commits don't fight over the same working
+# tree.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: ops-data-kuma-work
+  name: ops-data-health-kuma-work
   namespace: automation
 spec:
   accessModes:
