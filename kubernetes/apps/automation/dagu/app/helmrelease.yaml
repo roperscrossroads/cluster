@@ -118,12 +118,20 @@ spec:
               # probe that exercises the scheduler loop. The chart's probe
               # stays green during dagu's known silent-hang failure mode
               # (scheduler loop wedges; the HTTP server keeps responding),
-              # so kubelet never restarts the pod. The scheduler updates
-              # /data/scheduler/state.json on every tick (~once a minute),
-              # so its mtime is a reliable liveness signal.
-              # Threshold: 300s stale fails the probe; with periodSeconds=60
+              # so kubelet never restarts the pod.
+              #
+              # Signal: the `lastTick` field inside /data/scheduler/state.json,
+              # NOT the file's mtime. The planner main loop is the only thing
+              # that advances lastTick, but the file mtime is also bumped by
+              # the zombie detector, retry scanner, and lock heartbeat — so
+              # mtime can stay fresh while the planner is wedged (observed
+              # 2026-05-14: hang at 09:11 after a git-sync symlink swap; mtime
+              # stayed green for ~4h via background goroutines until manual
+              # restart). Parsing lastTick keys the probe to the actual loop.
+              #
+              # Threshold: 600s stale fails the probe; with periodSeconds=60
               # and failureThreshold=3, kubelet restarts after ~3 consecutive
-              # failures past the threshold = ~7-8 min total silence.
+              # failures past the threshold = ~12 min total silence.
               # The HTTP /health readinessProbe (set by the chart) stays as-is.
               - op: replace
                 path: /spec/template/spec/containers/0/livenessProbe
@@ -132,7 +140,7 @@ spec:
                     command:
                       - sh
                       - -c
-                      - "test $(($(date +%s) - $(stat -c %Y /data/scheduler/state.json))) -lt 300"
+                      - "test $(($(date -u +%s) - $(date -d \"$(jq -r .lastTick /data/scheduler/state.json)\" +%s))) -lt 600"
                   initialDelaySeconds: 90
                   periodSeconds: 60
                   timeoutSeconds: 10
