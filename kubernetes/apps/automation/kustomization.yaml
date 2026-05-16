@@ -10,6 +10,7 @@ resources:
   - ./namespace.yaml
   - ./dagu/ks.yaml
   - ./notes-rag/ks.yaml
+  - ./researcher/ks.yaml
   - ./ops-data-credentials/ks.yaml
   - ./health-zfs/ks.yaml
   - ./health-smart/ks.yaml
