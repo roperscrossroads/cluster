@@ -9,3 +9,4 @@ components:
 resources:
   - ./namespace.yaml
   - ./kube-prometheus-stack-crds/ks.yaml
+  - ./kube-prometheus-stack/ks.yaml

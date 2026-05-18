@@ -1,0 +1,26 @@
+---
+# Single ntfy webhook receiver — catches every alert and forwards to the
+# `infra` topic on internal ntfy. Refine with sub-routes later (e.g.
+# storage/disk alerts → `storage` topic, security alerts → `security`).
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: alertmanager
+  namespace: observability
+spec:
+  route:
+    receiver: ntfy-infra
+    groupBy: [alertname, namespace, severity]
+    groupWait: 30s
+    groupInterval: 5m
+    repeatInterval: 12h
+  receivers:
+    - name: ntfy-infra
+      webhookConfigs:
+        - url: https://ntfy.home.arpa/infra
+          sendResolved: true
+          httpConfig:
+            tlsConfig:
+              # Internal Caddy CA — mounted into the alertmanager pod via
+              # alertmanagerSpec.volumeMounts in the HelmRelease.
+              caFile: /etc/ssl/certs/internal-ca.crt
