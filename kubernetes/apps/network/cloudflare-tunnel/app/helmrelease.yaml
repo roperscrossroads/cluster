@@ -68,8 +68,19 @@ spec:
       config:
         data:
           config.yaml: |-
+            # Explicit allowlist of hostnames the cluster tunnel forwards to
+            # envoy-external. Previously this was a wildcard `*.${SECRET_DOMAIN}`
+            # which created a footgun: any future CNAME to external.${SECRET_DOMAIN}
+            # would be forwarded automatically with no operator review. Defense
+            # in depth — DNS wildcard cleanup is being done in ~/infra-new,
+            # this is the cluster-side mirror of that posture.
             ingress:
-              - hostname: "*.${SECRET_DOMAIN}"
+              - hostname: "echo.${SECRET_DOMAIN}"
+                originRequest:
+                  http2Origin: true
+                  originServerName: external.${SECRET_DOMAIN}
+                service: https://envoy-external.{{ .Release.Namespace }}.svc.cluster.local:443
+              - hostname: "flux-webhook.${SECRET_DOMAIN}"
                 originRequest:
                   http2Origin: true
                   originServerName: external.${SECRET_DOMAIN}
