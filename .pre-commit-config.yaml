@@ -25,7 +25,13 @@ repos:
       - id: trailing-whitespace
         exclude: '(^|/)(_out/|\.private/)'
       - id: check-yaml
-        args: [--allow-multiple-documents]
+        # --unsafe disables strict tag-specific construction so we don't trip
+        # on chart-vendored CRDs whose schemas include enum members like `- =`
+        # and `- "!="` (label-selector operators) — PyYAML's strict loader
+        # otherwise rejects them with "could not determine a constructor for
+        # the tag 'tag:yaml.org,2002:value'". Safe because the staged content
+        # is k8s manifests we trust + gitleaks runs ahead of this hook.
+        args: [--allow-multiple-documents, --unsafe]
         # Skip SOPS-encrypted YAML (gitleaks already handles it; the binary
         # ENC[...] payloads can confuse the YAML parser on some inputs).
         exclude: '(^|/)(.*\.sops\.ya?ml|talos/clusterconfig/.*\.yaml)$'
