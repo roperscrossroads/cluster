@@ -6,8 +6,12 @@ metadata:
 spec:
   interval: 1h
   path: ./kubernetes/apps/observability/kube-prometheus-stack/app
+  # Needs both the Prom-Operator CRDs (vendored) and the Grafana CRDs
+  # (from grafana-operator) — the chart's forceDeployDashboards renders
+  # GrafanaDashboard CRs alongside ServiceMonitor / PodMonitor / etc.
   dependsOn:
     - name: kube-prometheus-stack-crds
+    - name: grafana-operator
   prune: true
   sourceRef:
     kind: GitRepository

@@ -6,8 +6,11 @@ metadata:
 spec:
   interval: 1h
   path: ./kubernetes/apps/observability/grafana-operator/app
+  # Installs the Grafana CRDs that kube-prometheus-stack consumes when
+  # it emits its bundled dashboards as GrafanaDashboard CRs. So this
+  # has to land BEFORE kube-prometheus-stack.
   dependsOn:
-    - name: kube-prometheus-stack
+    - name: kube-prometheus-stack-crds
   prune: true
   sourceRef:
     kind: GitRepository
