@@ -76,7 +76,7 @@ spec:
         main:
           enabled: true
           hostnames:
-            - alertmanager.home.arpa
+            - alertmanager.ropxr.dev
           parentRefs:
             - name: envoy-internal
               namespace: network
@@ -87,7 +87,7 @@ spec:
         # tree + ntfy webhook receiver.
         alertmanagerConfiguration:
           name: alertmanager
-        externalUrl: https://alertmanager.home.arpa
+        externalUrl: https://alertmanager.ropxr.dev
         storage:
           volumeClaimTemplate:
             spec:
@@ -106,13 +106,13 @@ spec:
         main:
           enabled: true
           hostnames:
-            - prometheus.home.arpa
+            - prometheus.ropxr.dev
           parentRefs:
             - name: envoy-internal
               namespace: network
               sectionName: https
       prometheusSpec:
-        externalUrl: https://prometheus.home.arpa
+        externalUrl: https://prometheus.ropxr.dev
         # The four *SelectorNilUsesHelmValues:false flags make Prom pick up
         # ANY ServiceMonitor / PodMonitor / Probe / PrometheusRule /
         # ScrapeConfig in any namespace, without a label restriction. This

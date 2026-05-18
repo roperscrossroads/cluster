@@ -11,7 +11,7 @@ metadata:
 spec:
   config:
     server:
-      root_url: https://grafana.home.arpa
+      root_url: https://grafana.ropxr.dev
       enable_gzip: "true"
     auth:
       # Local admin only — anonymous read-only could come later if
@@ -72,7 +72,7 @@ spec:
   httpRoute:
     spec:
       hostnames:
-        - grafana.home.arpa
+        - grafana.ropxr.dev
       parentRefs:
         - name: envoy-internal
           namespace: network
