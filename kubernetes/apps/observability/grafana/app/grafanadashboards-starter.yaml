@@ -1,0 +1,22 @@
+---
+# Starter hand-picked community dashboard — demonstrates the pattern
+# for adding more. `grafanaCom.id` fetches the JSON from grafana.com at
+# reconcile time; cluster needs outbound to grafana.com (it does today).
+#
+# Node Exporter Full is the canonical comprehensive node hardware view —
+# more detail than the chart's bundled `nodes` dashboard.
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: node-exporter-full
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: grafana
+  folder: kubernetes
+  datasources:
+    - inputName: DS_PROMETHEUS
+      datasourceName: prometheus
+  grafanaCom:
+    id: 1860
+    revision: 41

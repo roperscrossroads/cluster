@@ -18,10 +18,36 @@ spec:
     # prefix on generated resources.
     cleanPrometheusOperatorObjectNames: true
 
-    # Grafana lives in its own HelmRelease (grafana-operator) so dashboards
-    # land as GrafanaDashboard CRs, not chart-internal ConfigMaps.
+    # Grafana lives in its own HelmRelease (grafana-operator) so the
+    # actual Grafana instance + datasources + auth are managed there.
+    #
+    # forceDeployDashboards + the operator block below makes the chart
+    # render its 30+ bundled k8s dashboards (apiserver, kubelet, nodes,
+    # k8s-resources-*, prometheus self, etc.) as ConfigMaps with the
+    # `dashboards: grafana` label — the grafana-operator instance
+    # selector then picks them up as GrafanaDashboard refs without any
+    # per-dashboard wiring on our side.
     grafana:
       enabled: false
+      forceDeployDashboards: true
+      forceDeployDatasources: false
+      defaultDashboardsEnabled: true
+      sidecar:
+        dashboards:
+          # The chart's bundled dashboards target the prometheus
+          # datasource by name "Prometheus" (capitalized); our
+          # GrafanaDatasource CR creates one called "prometheus".
+          # multicluster keeps the cluster label substitution sane
+          # for single-cluster deployments.
+          multicluster:
+            global:
+              enabled: false
+      operator:
+        dashboardsConfigMapRefEnabled: true
+        matchLabels:
+          dashboards: grafana
+        folder: kubernetes
+        resyncPeriod: 10m
 
     # node-exporter + kube-state-metrics use simpler names than the chart
     # default (which prefixes with the release name).

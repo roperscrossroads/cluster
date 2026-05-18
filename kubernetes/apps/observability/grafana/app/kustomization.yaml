@@ -7,3 +7,4 @@ resources:
   - ./admin-secret.sops.yaml
   - ./grafana.yaml
   - ./grafanadatasources.yaml
+  - ./grafanadashboards-starter.yaml
