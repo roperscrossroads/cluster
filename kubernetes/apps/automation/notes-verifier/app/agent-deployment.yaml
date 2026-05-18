@@ -1,0 +1,142 @@
+# notes-verifier — the FastAPI agent that the Dagu DAG calls into.
+#
+# Stateless in Phase A (no Postgres / Neo4j dependency yet — those are
+# deployed alongside for Phase B).
+#
+# IMPORTANT: this Deployment uses ServiceAccount notes-verifier-runner,
+# which is bound to the *read-only* claims-reader ClusterRole. Adding
+# any write verb to that role is a security regression.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notes-verifier
+  namespace: automation
+spec:
+  selector:
+    app.kubernetes.io/name: notes-verifier
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notes-verifier
+  namespace: automation
+  labels:
+    app.kubernetes.io/name: notes-verifier
+    app.kubernetes.io/part-of: notes-verifier
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate  # single in-flight extraction; avoid two pods racing on state PVC
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: notes-verifier
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: notes-verifier
+    spec:
+      serviceAccountName: notes-verifier-runner
+      imagePullSecrets:
+        - name: internal-registry-auth
+      containers:
+        - name: agent
+          # Built by Forgejo Actions on the Dev instance (k8s-labelled ARC
+          # runners) and pushed to the internal Zot registry. Bump the tag
+          # explicitly per release — no `:latest`.
+          image: registry.home.arpa/notes-verifier:v0.0.2
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+              name: http
+          env:
+            - name: LITELLM_BASE_URL
+              # LiteLLM runs on an LXC (`litellm-compute`), NOT in-cluster.
+              # Pods reach it by internal DNS at `litellm.home.arpa`. See
+              # ~/notes/local/infra/services/llm-routing.md for the
+              # source-of-truth on this URL.
+              value: "https://litellm.home.arpa/v1"
+            - name: LITELLM_MODEL
+              value: "local"  # hard-fail local group, no cloud fallback
+            - name: LITELLM_VKEY
+              valueFrom:
+                secretKeyRef:
+                  name: notes-verifier-litellm
+                  key: LITELLM_VKEY
+            # ---- drift sink (Forgejo Dev: git.home.arpa) ----
+            # Where the reconciler files drift issues. This is the only
+            # Forgejo the agent actually talks to in Phase A.
+            - name: FORGEJO_DRIFT_BASE_URL
+              value: "https://git.home.arpa"
+            - name: FORGEJO_DRIFT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: notes-verifier-forgejo-drift
+                  key: FORGEJO_DRIFT_TOKEN
+            - name: DRIFT_REPO
+              # `dev/notes-drift` — owned by the `bot` service account
+              # on the Dev Forgejo (per infra-new Claude's PAT minting).
+              value: "dev/notes-drift"
+            # ---- notes sink (Forgejo IaC: forge.home.arpa) ----
+            # Target of the PR-against-~/notes flow. Phase A keeps the
+            # PR sink dry-run, so this token is allowed to be the
+            # placeholder; Phase B requires a real PAT before flipping
+            # RECONCILE_DRY_RUN=false.
+            - name: FORGEJO_NOTES_BASE_URL
+              value: "https://forge.home.arpa"
+            - name: FORGEJO_NOTES_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: notes-verifier-forgejo-notes
+                  key: FORGEJO_NOTES_TOKEN
+            - name: NOTES_REPO
+              value: "adam/notes"
+            - name: RECONCILE_DRY_RUN
+              value: "true"  # Phase A: never push PRs. Phase B flips this.
+            # No SSL_CERT_FILE override: the entrypoint script runs
+            # update-ca-certificates against the mounted internal CA at
+            # startup, so /etc/ssl/certs/ca-certificates.crt (Python's
+            # default) trusts both public roots and the internal CA.
+            # Setting SSL_CERT_FILE would override the merged bundle.
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              memory: "1Gi"
+          volumeMounts:
+            - name: state
+              mountPath: /state
+            - name: internal-ca
+              # update-ca-certificates picks up .crt files from this dir
+              # at container start (run by docker-entrypoint.sh) and
+              # merges them into the system bundle. Filename must end
+              # in .crt — anything else is ignored by update-*.
+              mountPath: /usr/local/share/ca-certificates/internal-ca.crt
+              subPath: ca.crt
+      volumes:
+        - name: state
+          persistentVolumeClaim:
+            claimName: notes-verifier-state
+        - name: internal-ca
+          configMap:
+            name: internal-ca
+            items:
+              - key: ca.crt
+                path: ca.crt

@@ -1,0 +1,22 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: automation
+resources:
+  - ./rbac.yaml
+  - ./pvc.yaml
+  - ./agent-deployment.yaml
+  - ./httproute.yaml
+  - ./secrets/litellm-vkey.sops.yaml
+  - ./secrets/forgejo-drift-pat.sops.yaml
+  - ./secrets/forgejo-notes-pat.sops.yaml
+
+# Internal CA: same pattern as notes-rag — Caddy issues internal *.home.arpa
+# certs that the verifier needs to trust when calling Forgejo, LiteLLM, etc.
+# Drop the cluster CA bundle in `internal-ca.crt` at build time.
+configMapGenerator:
+  - name: internal-ca
+    files:
+      - ca.crt=internal-ca.crt
+    options:
+      disableNameSuffixHash: true

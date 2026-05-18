@@ -11,6 +11,7 @@ resources:
   - ./dagu/ks.yaml
   - ./notes-rag/ks.yaml
   - ./researcher/ks.yaml
+  - ./notes-verifier/ks.yaml
   - ./ops-data-credentials/ks.yaml
   - ./health-zfs/ks.yaml
   - ./health-smart/ks.yaml

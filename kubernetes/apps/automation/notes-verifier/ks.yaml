@@ -1,0 +1,38 @@
+# Flux Kustomization wrapper. When this app moves into ~/cluster, this
+# file moves to:
+#   ~/cluster/kubernetes/apps/automation/notes-verifier/ks.yaml
+# (path/sourceRef/postBuild lifted from notes-rag/ks.yaml).
+#
+# Two omissions worth knowing about:
+#
+# - No `metadata.namespace`: the parent
+#   `~/cluster/kubernetes/apps/automation/kustomization.yaml` sets
+#   `namespace: automation` at the kustomize top level, which rewrites
+#   any child resource's namespace. An explicit value here was
+#   misleading.
+#
+# - No `dependsOn: [dagu]`: the dependency direction is wrong.
+#   notes-verifier doesn't talk to Dagu at startup — the Dagu DAG (in
+#   `dev/dagu-dags`) calls into notes-verifier's FastAPI. If Dagu is
+#   down, the DAG just doesn't fire; the verifier pod is unaffected.
+#   Both omissions were called out in the cluster Claude's review of
+#   the migrated manifests.
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: notes-verifier
+spec:
+  interval: 1h
+  path: ./kubernetes/apps/automation/notes-verifier/app
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: automation
+  wait: false
+  postBuild:
+    substituteFrom:
+      - name: cluster-secrets
+        kind: Secret

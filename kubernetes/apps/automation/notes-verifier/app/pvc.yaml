@@ -1,0 +1,14 @@
+# Shared RWX state volume — git working copy of ~/notes, run reports,
+# manifest JSONs. Same pattern as notes-rag-state.
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: notes-verifier-state
+  namespace: automation
+spec:
+  accessModes: [ReadWriteMany]
+  storageClassName: zfs-nfs-1
+  resources:
+    requests:
+      storage: 5Gi
