@@ -1,0 +1,80 @@
+---
+# Declarative Grafana instance, managed by grafana-operator. The
+# `dashboards: grafana` label drives GrafanaDashboard / GrafanaDatasource
+# instanceSelector matching — anything labelled this way is picked up.
+apiVersion: grafana.integreatly.org/v1beta1
+kind: Grafana
+metadata:
+  name: grafana
+  labels:
+    dashboards: grafana
+spec:
+  config:
+    server:
+      root_url: https://grafana.home.arpa
+      enable_gzip: "true"
+    auth:
+      # Local admin only — anonymous read-only could come later if
+      # the household wants frictionless dashboard access; for v1 the
+      # password gates everything.
+      disable_login_form: "false"
+    auth.anonymous:
+      enabled: "false"
+    analytics:
+      check_for_updates: "false"
+      check_for_plugin_updates: "false"
+      feedback_links_enabled: "false"
+      reporting_enabled: "false"
+    log:
+      mode: console
+    metrics:
+      enabled: "true"
+    news:
+      news_feed_enabled: "false"
+    plugins:
+      plugin_admin_enabled: "false"
+    security:
+      angular_support_enabled: "true"
+  deployment:
+    spec:
+      strategy:
+        type: Recreate
+      template:
+        spec:
+          containers:
+            - name: grafana
+              env:
+                - name: GF_SECURITY_ADMIN_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: grafana-admin
+                      key: GF_SECURITY_ADMIN_PASSWORD
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            fsGroupChangePolicy: OnRootMismatch
+  # Internal-only HTTPRoute via envoy-internal — same Gateway pattern
+  # used by Dagu, Alertmanager, Prometheus, etc.
+  httpRoute:
+    spec:
+      hostnames:
+        - grafana.home.arpa
+      parentRefs:
+        - name: envoy-internal
+          namespace: network
+          sectionName: https
+  persistentVolumeClaim:
+    spec:
+      accessModes: [ReadWriteOnce]
+      storageClassName: zfs-nvmeof-1
+      resources:
+        requests:
+          storage: 5Gi
+  disableDefaultSecurityContext: All
