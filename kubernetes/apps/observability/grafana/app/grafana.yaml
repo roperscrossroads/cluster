@@ -60,6 +60,13 @@ spec:
             runAsGroup: 1000
             fsGroup: 1000
             fsGroupChangePolicy: OnRootMismatch
+          # The operator creates a PVC (see persistentVolumeClaim below)
+          # but doesn't wire it into the Deployment by default — the
+          # `grafana-data` volume defaults to emptyDir. Override it here.
+          volumes:
+            - name: grafana-data
+              persistentVolumeClaim:
+                claimName: grafana-pvc
   # Internal-only HTTPRoute via envoy-internal — same Gateway pattern
   # used by Dagu, Alertmanager, Prometheus, etc.
   httpRoute:
