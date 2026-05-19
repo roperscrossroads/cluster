@@ -97,11 +97,14 @@ spec:
               value: "adam/notes"
             - name: RECONCILE_DRY_RUN
               value: "true"  # Phase A: never push PRs. Phase B flips this.
-            # No SSL_CERT_FILE override: the entrypoint script runs
-            # update-ca-certificates against the mounted internal CA at
-            # startup, so /etc/ssl/certs/ca-certificates.crt (Python's
-            # default) trusts both public roots and the internal CA.
-            # Setting SSL_CERT_FILE would override the merged bundle.
+            # Python's default ssl cafile on this image's libssl is
+            # /usr/lib/ssl/cert.pem, NOT /etc/ssl/certs/ca-certificates.crt.
+            # The entrypoint's `update-ca-certificates` only merges into
+            # the latter, so without this override pydantic-ai's httpx
+            # calls to internal-CA-signed endpoints (LiteLLM via Caddy)
+            # fail TLS verification. Point Python at the merged bundle.
+            - name: SSL_CERT_FILE
+              value: /etc/ssl/certs/ca-certificates.crt
           readinessProbe:
             httpGet:
               path: /healthz
