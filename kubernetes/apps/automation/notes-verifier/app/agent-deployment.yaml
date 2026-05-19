@@ -48,7 +48,7 @@ spec:
           # Built by Forgejo Actions on the Dev instance (k8s-labelled ARC
           # runners) and pushed to the internal Zot registry. Bump the tag
           # explicitly per release — no `:latest`.
-          image: registry.home.arpa:8080/notes-verifier:v0.0.4
+          image: registry.home.arpa:8080/notes-verifier:v0.0.5
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
