@@ -61,7 +61,13 @@ spec:
               # source-of-truth on this URL.
               value: "https://litellm.home.arpa/v1"
             - name: LITELLM_MODEL
-              value: "local"  # hard-fail local group, no cloud fallback
+              # TEMP — validation-only. The intended steady state is the
+              # `local` group, but the model currently loaded in LM Studio
+              # is a reasoning model whose chat template forces thinking
+              # and silently drops content. Switch back to `local` once a
+              # non-reasoning model is loaded (probe with the snippet in
+              # ~/.claude/plans/i-am-switching-claims-verifier-shiny-naur.md).
+              value: "anthropic-haiku"
             - name: LITELLM_VKEY
               valueFrom:
                 secretKeyRef:
