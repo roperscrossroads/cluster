@@ -1,0 +1,49 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cloudnative-pg
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: cloudnative-pg
+  interval: 1h
+  values:
+    # CRDs are decoupled into cnpg-operator-crds Flux Kustomization.
+    # Upgrades are a re-vendor + apply, not a chart-hook gamble.
+    crds:
+      create: false
+
+    # Single control plane — fine for homelab. Bump to 3 if you ever
+    # want leader-election + HA failover for the operator itself
+    # (workload Cluster CRs can already do their own multi-instance
+    # HA independent of the operator's replica count).
+    replicaCount: 1
+
+    image:
+      repository: ghcr.io/cloudnative-pg/cloudnative-pg
+      pullPolicy: IfNotPresent  # spegel caches ghcr.io pulls transparently
+
+    # Webhook ships with the chart's built-in self-signed cert
+    # generator; operator manages rotation. Switch to cert-manager
+    # via `webhook.certManager.enabled: true` if the homogeneous-cert
+    # story ever becomes important — for v1, fewer moving parts wins.
+
+    # Prometheus integration — kube-prometheus-stack is already in
+    # the cluster, so we can wire monitoring on from day 1.
+    monitoring:
+      podMonitorEnabled: true
+      grafanaDashboard:
+        create: true
+        # Match the operator-emitted dashboard label so the
+        # grafana-operator picks it up via the existing sidecar
+        # ConfigMap reference pattern (see observability/grafana).
+        labels:
+          dashboards: grafana
+
+    resources:
+      requests:
+        cpu: 50m
+        memory: 100Mi
+      limits:
+        memory: 200Mi
