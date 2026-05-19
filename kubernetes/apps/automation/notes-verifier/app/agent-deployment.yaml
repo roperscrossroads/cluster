@@ -48,7 +48,7 @@ spec:
           # Built by Forgejo Actions on the Dev instance (k8s-labelled ARC
           # runners) and pushed to the internal Zot registry. Bump the tag
           # explicitly per release — no `:latest`.
-          image: registry.home.arpa:8080/notes-verifier:v0.0.2
+          image: registry.home.arpa:8080/notes-verifier:v0.0.3
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
@@ -97,14 +97,6 @@ spec:
               value: "adam/notes"
             - name: RECONCILE_DRY_RUN
               value: "true"  # Phase A: never push PRs. Phase B flips this.
-            # Python's default ssl cafile on this image's libssl is
-            # /usr/lib/ssl/cert.pem, NOT /etc/ssl/certs/ca-certificates.crt.
-            # The entrypoint's `update-ca-certificates` only merges into
-            # the latter, so without this override pydantic-ai's httpx
-            # calls to internal-CA-signed endpoints (LiteLLM via Caddy)
-            # fail TLS verification. Point Python at the merged bundle.
-            - name: SSL_CERT_FILE
-              value: /etc/ssl/certs/ca-certificates.crt
           readinessProbe:
             httpGet:
               path: /healthz
