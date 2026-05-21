@@ -136,6 +136,44 @@ just bootstrap talos
 just bootstrap apps
 ```
 
+## Security posture — supply-chain scanning (in scope, not yet built)
+
+Stated direction (2026-05-21): start adding scanning + detection to
+catch supply-chain attacks against the workloads this repo deploys.
+Prompted by the 2026-03-24 LiteLLM 1.82.7 / 1.82.8 credential-stealer
+incident (on the LXC side; we were unaffected but the close call is a
+useful prompt).
+
+Surface area this repo owns:
+
+- **OCI Helm charts** referenced from `kubernetes/apps/*/helm/`
+  (cert-manager, Cilium, KEDA, ARC, envoy-gateway, cloudflare
+  controllers, democratic-csi, dagu, etc.). Tag-pinned via `interval`
+  + `chart` block; no signature verification today.
+- **Container images** those charts (and our raw `Deployment`s) pull —
+  e.g. forgejo-runner pod, custom MCP / agent images.
+- **Cluster bootstrap binaries** pulled by `just bootstrap` and by
+  `mise` on the workstation (talos, talhelper, flux, kubectl, helm,
+  cilium-cli).
+- **Sigstore / cosign signatures** on Flux artifacts themselves (Flux
+  publishes signed manifests; we don't verify them today).
+
+Plausible building blocks to evaluate (no commitment yet):
+
+- `flux-operator` supports signature verification via cosign keyless
+  on `HelmRelease.spec.chart.spec.verify` — worth enabling per-source.
+- Image scanning at admission: kyverno / kyverno-chainsaw policies, or
+  trivy-operator running as a cluster scan job.
+- `flux image-policy` for upgrade-pressure inside-cluster (alternative
+  to Renovate for image tags).
+- `osv-scanner` / `trivy` against the repo in CI before Flux even
+  picks it up.
+
+Until something is in place, when adding or bumping a chart/image,
+**check for recent advisories on it first** and prefer pinning to a
+digest (not just a tag) for high-blast-radius components (CSI,
+network plugins, anything that runs as cluster-admin).
+
 ## When a CLAUDE.md changes
 
 Update `~/.claude/CLAUDE.md` (the user-level project map) if anything
