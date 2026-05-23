@@ -14,3 +14,4 @@ resources:
   - ./democratic-csi-zfs-nfs-1/ks.yaml
   - ./democratic-csi-zfs-nfs-2/ks.yaml
   - ./external-snapshotter-crds/ks.yaml
+  - ./external-snapshotter/ks.yaml
