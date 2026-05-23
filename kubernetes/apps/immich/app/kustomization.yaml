@@ -10,6 +10,9 @@ resources:
   - ./library-pvc.yaml
   - ./ml-cache-pvc.yaml
   - ./valkey-pvc.yaml
+  - ./helmrepository.yaml
+  - ./helmrelease.yaml
+  - ./httproute.yaml
 
 configMapGenerator:
   - name: cnpg-cluster-config
