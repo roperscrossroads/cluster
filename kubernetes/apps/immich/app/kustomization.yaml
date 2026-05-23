@@ -2,7 +2,114 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: immich
+
+components:
+  - ../../../components/cnpg-cluster
+
 resources:
   - ./library-pvc.yaml
   - ./ml-cache-pvc.yaml
   - ./valkey-pvc.yaml
+
+configMapGenerator:
+  - name: cnpg-cluster-config
+    literals:
+      - APP_NAME=immich-database
+      - RETENTION_NAME=immich-retention
+      - DB_NAME=immich
+      - DB_OWNER=immich
+      - INSTANCES=1
+      - STORAGE_CLASS=zfs-nvmeof-2
+      - STORAGE_SIZE=10Gi
+      - IMAGE_NAME=ghcr.io/tensorchord/cloudnative-vectorchord:16.9-0.4.3
+      - MEMORY_REQUEST=1Gi
+      - MEMORY_LIMIT=2Gi
+      - BACKUP_SCHEDULE=0 0 3 * * *      # CNPG cron: leading seconds field
+      - SNAPSHOT_CLASS=zfs-nvmeof-2-snapshots
+      - BACKUP_RETENTION=30d             # format: Nd (days only)
+    options:
+      disableNameSuffixHash: true
+
+replacements:
+  - source: { kind: ConfigMap, name: cnpg-cluster-config, fieldPath: data.APP_NAME }
+    targets:
+      - select: { kind: Cluster, name: PLACEHOLDER_APP_NAME }
+        fieldPaths: [metadata.name]
+      - select: { kind: ScheduledBackup, name: PLACEHOLDER_APP_NAME }
+        fieldPaths: [metadata.name, spec.cluster.name]
+      - select: { kind: PodMonitor, name: PLACEHOLDER_APP_NAME }
+        fieldPaths:
+          - metadata.name
+          - metadata.labels.[cnpg.io/cluster]
+          - spec.selector.matchLabels.[cnpg.io/cluster]
+      - select: { kind: CronJob, name: PLACEHOLDER_RETENTION_NAME }
+        fieldPaths:
+          - spec.jobTemplate.spec.template.spec.containers.[name=prune].env.[name=CLUSTER_NAME].value
+  - source: { kind: ConfigMap, name: cnpg-cluster-config, fieldPath: data.RETENTION_NAME }
+    targets:
+      - select: { kind: ServiceAccount, name: PLACEHOLDER_RETENTION_NAME }
+        fieldPaths: [metadata.name]
+      - select: { kind: Role, name: PLACEHOLDER_RETENTION_NAME }
+        fieldPaths: [metadata.name]
+      - select: { kind: RoleBinding, name: PLACEHOLDER_RETENTION_NAME }
+        fieldPaths:
+          - metadata.name
+          - roleRef.name
+          - subjects.0.name
+      - select: { kind: CronJob, name: PLACEHOLDER_RETENTION_NAME }
+        fieldPaths:
+          - metadata.name
+          - spec.jobTemplate.spec.template.spec.serviceAccountName
+  - source: { kind: ConfigMap, name: cnpg-cluster-config, fieldPath: data.INSTANCES }
+    targets:
+      - select: { kind: Cluster, name: PLACEHOLDER_APP_NAME }
+        fieldPaths: [spec.instances]
+  - source: { kind: ConfigMap, name: cnpg-cluster-config, fieldPath: data.IMAGE_NAME }
+    targets:
+      - select: { kind: Cluster, name: PLACEHOLDER_APP_NAME }
+        fieldPaths: [spec.imageName]
+  - source: { kind: ConfigMap, name: cnpg-cluster-config, fieldPath: data.DB_NAME }
+    targets:
+      - select: { kind: Cluster, name: PLACEHOLDER_APP_NAME }
+        fieldPaths: [spec.bootstrap.initdb.database]
+  - source: { kind: ConfigMap, name: cnpg-cluster-config, fieldPath: data.DB_OWNER }
+    targets:
+      - select: { kind: Cluster, name: PLACEHOLDER_APP_NAME }
+        fieldPaths: [spec.bootstrap.initdb.owner]
+  - source: { kind: ConfigMap, name: cnpg-cluster-config, fieldPath: data.STORAGE_CLASS }
+    targets:
+      - select: { kind: Cluster, name: PLACEHOLDER_APP_NAME }
+        fieldPaths: [spec.storage.storageClass]
+  - source: { kind: ConfigMap, name: cnpg-cluster-config, fieldPath: data.STORAGE_SIZE }
+    targets:
+      - select: { kind: Cluster, name: PLACEHOLDER_APP_NAME }
+        fieldPaths: [spec.storage.size]
+  - source: { kind: ConfigMap, name: cnpg-cluster-config, fieldPath: data.MEMORY_REQUEST }
+    targets:
+      - select: { kind: Cluster, name: PLACEHOLDER_APP_NAME }
+        fieldPaths: [spec.resources.requests.memory]
+  - source: { kind: ConfigMap, name: cnpg-cluster-config, fieldPath: data.MEMORY_LIMIT }
+    targets:
+      - select: { kind: Cluster, name: PLACEHOLDER_APP_NAME }
+        fieldPaths: [spec.resources.limits.memory]
+  - source: { kind: ConfigMap, name: cnpg-cluster-config, fieldPath: data.SNAPSHOT_CLASS }
+    targets:
+      - select: { kind: Cluster, name: PLACEHOLDER_APP_NAME }
+        fieldPaths: [spec.backup.volumeSnapshot.className]
+  - source: { kind: ConfigMap, name: cnpg-cluster-config, fieldPath: data.BACKUP_SCHEDULE }
+    targets:
+      - select: { kind: ScheduledBackup, name: PLACEHOLDER_APP_NAME }
+        fieldPaths: [spec.schedule]
+  - source: { kind: ConfigMap, name: cnpg-cluster-config, fieldPath: data.BACKUP_RETENTION }
+    targets:
+      - select: { kind: CronJob, name: PLACEHOLDER_RETENTION_NAME }
+        fieldPaths:
+          - spec.jobTemplate.spec.template.spec.containers.[name=prune].env.[name=BACKUP_RETENTION].value
+
+patches:
+  - path: ./cluster-extras.yaml
+    target:
+      group: postgresql.cnpg.io
+      version: v1
+      kind: Cluster
+      name: PLACEHOLDER_APP_NAME

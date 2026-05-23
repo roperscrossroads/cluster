@@ -1,0 +1,17 @@
+---
+# Strategic-merge extension of the CNPG Component's Cluster CR.
+# Adds vchord (vectorchord) to shared_preload_libraries + creates the
+# extensions Immich needs on first start.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: PLACEHOLDER_APP_NAME
+spec:
+  bootstrap:
+    initdb:
+      postInitApplicationSQL:
+        - CREATE EXTENSION vchord CASCADE;
+        - CREATE EXTENSION earthdistance CASCADE;
+  postgresql:
+    shared_preload_libraries:
+      - vchord.so
