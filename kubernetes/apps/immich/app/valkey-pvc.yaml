@@ -1,0 +1,13 @@
+---
+# Backs the chart's bundled valkey so queued jobs survive pod restart.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: immich-valkey-data
+  namespace: immich
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 2Gi

@@ -1,0 +1,14 @@
+---
+# Persisted so the ML pod doesn't re-download CLIP/face models on every
+# (re)schedule. RWX so a node move doesn't strand the cache.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: immich-ml-cache
+  namespace: immich
+spec:
+  accessModes: [ReadWriteMany]
+  storageClassName: zfs-nfs-1
+  resources:
+    requests:
+      storage: 20Gi
