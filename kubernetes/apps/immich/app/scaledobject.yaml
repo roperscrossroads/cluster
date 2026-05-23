@@ -1,0 +1,74 @@
+---
+# KEDA scales immich-machine-learning between 0 and 1 based on Redis
+# (valkey) queue depth across the ML-bound BullMQ queues. Triggers are
+# OR-combined: any non-empty queue scales up to 1.
+#
+# Queue key convention (verified empirically against the live valkey
+# instance and Immich v2.7.5 source at
+# server/src/repositories/config.repository.ts:283):
+#   prefix:       immich_bull
+#   queue names:  camelCase enum values from server/src/enum.ts
+#                 (ThumbnailGeneration → thumbnailGeneration, etc.)
+#   waiting list: <prefix>:<queueName>:wait   (BullMQ built-in suffix
+#                 — KEDA reads LLEN on this list)
+#
+# ML-bound queues (all hit machineLearningRepository in the server):
+#   - thumbnailGeneration  (media.service.ts — thumbnail/preview ML)
+#   - faceDetection        (person.service.ts — face detection model)
+#   - smartSearch          (smart-info.service.ts — CLIP embeddings)
+#   - duplicateDetection   (duplicate.service.ts — uses CLIP)
+#   - ocr                  (ocr.service.ts — OCR model)
+#
+# facialRecognition runs after faceDetection but is just pgvector
+# clustering (no ML call), so it's excluded here — it doesn't need the
+# ML container running.
+#
+# Cold-start cost: ~10-30s (image pull is cached; ONNX model load is
+# the slow part). Acceptable for background work; users see
+# thumbnails/search results appear after the first job lands.
+#
+# Tuning levers if behaviour is wrong:
+#   - 0↔1 flapping            → raise cooldownPeriod (currently 300s)
+#   - perceived latency spike → lower pollingInterval (currently 30s)
+#   - never scales to zero    → check `valkey-cli LLEN immich_bull:<q>:wait`
+#
+# No TriggerAuthentication needed — valkey is unauthenticated inside
+# the cluster (chart default; not exposed beyond the namespace).
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: immich-ml
+  namespace: immich
+spec:
+  scaleTargetRef:
+    name: immich-machine-learning
+  minReplicaCount: 0
+  maxReplicaCount: 1
+  pollingInterval: 30
+  cooldownPeriod: 300
+  triggers:
+    - type: redis
+      metadata:
+        address: immich-valkey:6379
+        listName: immich_bull:thumbnailGeneration:wait
+        listLength: "1"
+    - type: redis
+      metadata:
+        address: immich-valkey:6379
+        listName: immich_bull:faceDetection:wait
+        listLength: "1"
+    - type: redis
+      metadata:
+        address: immich-valkey:6379
+        listName: immich_bull:smartSearch:wait
+        listLength: "1"
+    - type: redis
+      metadata:
+        address: immich-valkey:6379
+        listName: immich_bull:duplicateDetection:wait
+        listLength: "1"
+    - type: redis
+      metadata:
+        address: immich-valkey:6379
+        listName: immich_bull:ocr:wait
+        listLength: "1"

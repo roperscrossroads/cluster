@@ -13,6 +13,7 @@ resources:
   - ./helmrepository.yaml
   - ./helmrelease.yaml
   - ./httproute.yaml
+  - ./scaledobject.yaml
 
 configMapGenerator:
   - name: cnpg-cluster-config
