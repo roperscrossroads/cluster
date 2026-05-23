@@ -42,6 +42,13 @@ spec:
                     key: dbname
 
     immich:
+      # Rendered into the immich-config.yaml ConfigMap by the chart and
+      # mounted at /config/. Seeds Immich's persistent system config so
+      # share-link / email / mobile sharing URLs are correct on first
+      # boot. Admin UI changes still take precedence later.
+      configuration:
+        server:
+          externalDomain: "https://immich.ropxr.dev"
       persistence:
         library:
           existingClaim: immich-library
@@ -51,6 +58,19 @@ spec:
     # pod restart.
     valkey:
       enabled: true
+      controllers:
+        main:
+          containers:
+            main:
+              # Tiny queue process. No CPU limit on purpose — CPU
+              # throttling on something this small only adds latency
+              # risk for no real benefit.
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 64Mi
+                limits:
+                  memory: 256Mi
       persistence:
         data:
           enabled: true
@@ -66,6 +86,16 @@ spec:
               image:
                 repository: ghcr.io/immich-app/immich-server
                 pullPolicy: IfNotPresent
+              # Node.js + ffmpeg for video transcode. Headroom for
+              # transcode spikes but capped so it can't OOM-kill
+              # co-tenants on the node.
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 512Mi
+                limits:
+                  cpu: "2"
+                  memory: 2Gi
 
     machine-learning:
       enabled: true
@@ -80,6 +110,14 @@ spec:
                 TRANSFORMERS_CACHE: /cache
                 HF_XET_CACHE: /cache/huggingface-xet
                 MPLCONFIGDIR: /cache/matplotlib-config
+              # PyTorch inference, models held in memory.
+              resources:
+                requests:
+                  cpu: 200m
+                  memory: 1Gi
+                limits:
+                  cpu: "2"
+                  memory: 4Gi
       persistence:
         cache:
           enabled: true
