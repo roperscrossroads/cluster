@@ -1,0 +1,14 @@
+---
+# Nightly backup via VolumeSnapshot on the same StorageClass tier as
+# the Cluster's data PVC. Requires Phase A.1 (external-snapshotter)
+# AND the matching VolumeSnapshotClass to exist.
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: PLACEHOLDER_APP_NAME-snap      # replaced
+spec:
+  schedule: PLACEHOLDER_BACKUP_SCHEDULE   # replaced; cron format with leading seconds field per CNPG
+  backupOwnerReference: self
+  method: volumeSnapshot
+  cluster:
+    name: PLACEHOLDER_APP_NAME           # replaced; must match Cluster.metadata.name

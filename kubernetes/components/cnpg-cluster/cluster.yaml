@@ -1,0 +1,48 @@
+---
+# Reusable CNPG Cluster CR. Consumed via:
+#   components: [../../../components/cnpg-cluster]
+# plus a ConfigMap "cnpg-cluster-config" + replacements:
+# block in the consumer's kustomization.yaml.
+#
+# See ./README.md for the full consumer block.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: PLACEHOLDER_APP_NAME           # replaced via kustomize
+spec:
+  instances: 1                          # replaced via kustomize
+  imageName: PLACEHOLDER_IMAGE          # replaced via kustomize
+
+  bootstrap:
+    initdb:
+      database: PLACEHOLDER_DB_NAME     # replaced via kustomize
+      owner: PLACEHOLDER_DB_OWNER       # replaced via kustomize
+      dataChecksums: true
+      # postInitApplicationSQL is intentionally unset here.
+      # Consumers that need extensions (e.g. immich vchord) layer them
+      # in via a strategic-merge patch on this Cluster.
+
+  storage:
+    storageClass: PLACEHOLDER_STORAGE_CLASS   # replaced
+    size: PLACEHOLDER_STORAGE_SIZE            # replaced
+
+  monitoring:
+    enablePodMonitor: true
+
+  resources:
+    requests:
+      memory: PLACEHOLDER_MEMORY_REQUEST      # replaced
+      cpu: 100m
+    limits:
+      memory: PLACEHOLDER_MEMORY_LIMIT        # replaced
+
+  postgresql:
+    pg_hba:
+      - hostssl all all 0.0.0.0/0 scram-sha-256
+    # shared_preload_libraries intentionally unset; consumers extend
+    # via strategic-merge patch.
+
+  backup:
+    retentionPolicy: PLACEHOLDER_BACKUP_RETENTION   # replaced
+    volumeSnapshot:
+      className: PLACEHOLDER_SNAPSHOT_CLASS         # replaced
