@@ -4,3 +4,6 @@ kind: Component
 resources:
   - ./cluster.yaml
   - ./scheduledbackup.yaml
+  - ./podmonitor.yaml
+  - ./retention-rbac.yaml
+  - ./retention-cronjob.yaml

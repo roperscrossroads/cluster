@@ -5,6 +5,18 @@
 # block in the consumer's kustomization.yaml.
 #
 # See ./README.md for the full consumer block.
+#
+# Notes on what is intentionally NOT here:
+# - `spec.monitoring.enablePodMonitor` is deprecated upstream (see
+#   internal/webhook/v1/cluster_webhook.go:2675). The Component ships
+#   a manually-managed PodMonitor in podmonitor.yaml instead.
+# - `spec.backup.retentionPolicy` is Barman-only and silently ignored
+#   for `method: volumeSnapshot` (cluster_webhook.go:2640 +
+#   docs/src/backup.md:158 "Volume Snapshots: Do not support retention
+#   policies"). Retention is enforced by the per-Component CronJob in
+#   retention-cronjob.yaml — see the README's Retention section and
+#   the substrate finding in
+#   ~/notes/local/infra/mini-cluster/immich-design.md.
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
@@ -26,9 +38,6 @@ spec:
     storageClass: PLACEHOLDER_STORAGE_CLASS   # replaced
     size: PLACEHOLDER_STORAGE_SIZE            # replaced
 
-  monitoring:
-    enablePodMonitor: true
-
   resources:
     requests:
       memory: PLACEHOLDER_MEMORY_REQUEST      # replaced
@@ -43,6 +52,7 @@ spec:
     # via strategic-merge patch.
 
   backup:
-    retentionPolicy: PLACEHOLDER_BACKUP_RETENTION   # replaced
+    # No retentionPolicy: Barman-only, ignored for volumeSnapshot.
+    # See retention-cronjob.yaml for the actual retention mechanism.
     volumeSnapshot:
       className: PLACEHOLDER_SNAPSHOT_CLASS         # replaced

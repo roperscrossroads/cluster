@@ -1,0 +1,71 @@
+---
+# Retention pruner. Runs daily, deletes CNPG Backup CRs for this
+# cluster older than BACKUP_RETENTION days. Owner references on
+# CNPG-created VolumeSnapshots ensure cascade deletion.
+#
+# Why this exists: CNPG's spec.backup.retentionPolicy is Barman-only
+# (see cluster_webhook.go:2640 + docs/src/backup.md:158 — "Volume
+# Snapshots: Do not support retention policies"). Until CNPG ships a
+# plugin-based retention story we maintain our own. Single-tenant; one
+# CronJob per PG cluster.
+#
+# BACKUP_RETENTION format: Nd (days only). The script strips the 'd'
+# suffix. Other suffixes (w/m) error out — extend if needed.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: PLACEHOLDER_RETENTION_NAME        # replaced via kustomize
+spec:
+  schedule: "0 4 * * *"                   # 1h after default backup time; hardcoded for now
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: PLACEHOLDER_RETENTION_NAME   # replaced via kustomize
+          restartPolicy: OnFailure
+          containers:
+            - name: prune
+              image: docker.io/bitnami/kubectl:1.32
+              env:
+                - name: CLUSTER_NAME
+                  value: PLACEHOLDER_APP_NAME              # replaced via kustomize
+                - name: NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                - name: BACKUP_RETENTION
+                  value: PLACEHOLDER_BACKUP_RETENTION      # replaced via kustomize; format Nd
+              command:
+                - sh
+                - -c
+                - |
+                  set -eu
+                  case "$BACKUP_RETENTION" in
+                    *d) DAYS="${BACKUP_RETENTION%d}" ;;
+                    *) echo "ERROR: BACKUP_RETENTION='$BACKUP_RETENTION' — only Nd format supported"; exit 1 ;;
+                  esac
+                  CUTOFF_EPOCH=$(date -u -d "$DAYS days ago" +%s)
+                  CUTOFF_READABLE=$(date -u -d "$DAYS days ago" --iso-8601=seconds)
+                  echo "Pruning Backup CRs for cluster=$CLUSTER_NAME in ns=$NAMESPACE older than $CUTOFF_READABLE"
+                  STALE=""
+                  for line in $(kubectl get backup -n "$NAMESPACE" \
+                      -l "cnpg.io/cluster=$CLUSTER_NAME" \
+                      -o jsonpath='{range .items[*]}{.metadata.name}={.metadata.creationTimestamp}{"\n"}{end}'); do
+                    NAME="${line%=*}"
+                    TS="${line#*=}"
+                    TS_EPOCH=$(date -u -d "$TS" +%s)
+                    if [ "$TS_EPOCH" -lt "$CUTOFF_EPOCH" ]; then
+                      STALE="$STALE $NAME"
+                    fi
+                  done
+                  if [ -z "$STALE" ]; then
+                    echo "Nothing to prune"
+                    exit 0
+                  fi
+                  for name in $STALE; do
+                    echo "Deleting backup/$name"
+                    kubectl delete backup -n "$NAMESPACE" "$name"
+                  done

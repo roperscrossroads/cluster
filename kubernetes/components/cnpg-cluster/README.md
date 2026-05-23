@@ -1,7 +1,23 @@
 # CNPG-Cluster Component
 
 Reusable kustomize Component that instantiates a CloudNativePG `Cluster`
-plus a `ScheduledBackup`, parameterized via a ConfigMap + replacements.
+plus a `ScheduledBackup`, a `PodMonitor`, and a per-tenant retention
+`CronJob` (with its `ServiceAccount`/`Role`/`RoleBinding`), parameterized
+via a ConfigMap + replacements.
+
+## What's inside
+
+| File | Resources |
+|---|---|
+| `cluster.yaml` | `Cluster` (postgresql.cnpg.io/v1) |
+| `scheduledbackup.yaml` | `ScheduledBackup` (postgresql.cnpg.io/v1, `method: volumeSnapshot`) |
+| `podmonitor.yaml` | `PodMonitor` (monitoring.coreos.com/v1) — replaces the deprecated `spec.monitoring.enablePodMonitor` field on the Cluster CR |
+| `retention-rbac.yaml` | `ServiceAccount` + `Role` + `RoleBinding` for the pruner |
+| `retention-cronjob.yaml` | `CronJob` — daily prune of stale `Backup` CRs |
+
+Seven distinct objects across five files. `kustomize build` renders all
+of them with `PLACEHOLDER_*` strings intact; the consumer substitutes
+via `replacements:`.
 
 ## Consumer usage
 
@@ -26,6 +42,7 @@ configMapGenerator:
   - name: cnpg-cluster-config
     literals:
       - APP_NAME=<app>-database
+      - RETENTION_NAME=<app>-database-retention
       - DB_NAME=<app>
       - DB_OWNER=<app>
       - INSTANCES=1
@@ -36,7 +53,7 @@ configMapGenerator:
       - MEMORY_LIMIT=2Gi
       - BACKUP_SCHEDULE=0 0 3 * * *      # CNPG cron: leading seconds field
       - SNAPSHOT_CLASS=zfs-nvmeof-2-snapshots
-      - BACKUP_RETENTION=30d
+      - BACKUP_RETENTION=30d             # format: Nd (days only)
     options:
       disableNameSuffixHash: true
 
@@ -47,6 +64,29 @@ replacements:
         fieldPaths: [metadata.name]
       - select: { kind: ScheduledBackup, name: PLACEHOLDER_APP_NAME }
         fieldPaths: [metadata.name, spec.cluster.name]
+      - select: { kind: PodMonitor, name: PLACEHOLDER_APP_NAME }
+        fieldPaths:
+          - metadata.name
+          - metadata.labels.[cnpg.io/cluster]
+          - spec.selector.matchLabels.[cnpg.io/cluster]
+      - select: { kind: CronJob, name: PLACEHOLDER_RETENTION_NAME }
+        fieldPaths:
+          - spec.jobTemplate.spec.template.spec.containers.[name=prune].env.[name=CLUSTER_NAME].value
+  - source: { kind: ConfigMap, name: cnpg-cluster-config, fieldPath: data.RETENTION_NAME }
+    targets:
+      - select: { kind: ServiceAccount, name: PLACEHOLDER_RETENTION_NAME }
+        fieldPaths: [metadata.name]
+      - select: { kind: Role, name: PLACEHOLDER_RETENTION_NAME }
+        fieldPaths: [metadata.name]
+      - select: { kind: RoleBinding, name: PLACEHOLDER_RETENTION_NAME }
+        fieldPaths:
+          - metadata.name
+          - roleRef.name
+          - subjects.0.name
+      - select: { kind: CronJob, name: PLACEHOLDER_RETENTION_NAME }
+        fieldPaths:
+          - metadata.name
+          - spec.jobTemplate.spec.template.spec.serviceAccountName
   - source: { kind: ConfigMap, name: cnpg-cluster-config, fieldPath: data.INSTANCES }
     targets:
       - select: { kind: Cluster, name: PLACEHOLDER_APP_NAME }
@@ -79,10 +119,6 @@ replacements:
     targets:
       - select: { kind: Cluster, name: PLACEHOLDER_APP_NAME }
         fieldPaths: [spec.resources.limits.memory]
-  - source: { kind: ConfigMap, name: cnpg-cluster-config, fieldPath: data.BACKUP_RETENTION }
-    targets:
-      - select: { kind: Cluster, name: PLACEHOLDER_APP_NAME }
-        fieldPaths: [spec.backup.retentionPolicy]
   - source: { kind: ConfigMap, name: cnpg-cluster-config, fieldPath: data.SNAPSHOT_CLASS }
     targets:
       - select: { kind: Cluster, name: PLACEHOLDER_APP_NAME }
@@ -91,7 +127,55 @@ replacements:
     targets:
       - select: { kind: ScheduledBackup, name: PLACEHOLDER_APP_NAME }
         fieldPaths: [spec.schedule]
+  - source: { kind: ConfigMap, name: cnpg-cluster-config, fieldPath: data.BACKUP_RETENTION }
+    targets:
+      - select: { kind: CronJob, name: PLACEHOLDER_RETENTION_NAME }
+        fieldPaths:
+          - spec.jobTemplate.spec.template.spec.containers.[name=prune].env.[name=BACKUP_RETENTION].value
 ```
+
+## Variable surface
+
+| Variable | Purpose | Example |
+|---|---|---|
+| `APP_NAME` | Base name for Cluster, ScheduledBackup, PodMonitor. CNPG also creates a ServiceAccount with this exact name for the postgres pods, so `RETENTION_NAME` MUST differ from `APP_NAME`. | `immich-database` |
+| `RETENTION_NAME` | Name for the pruner CronJob + its ServiceAccount/Role/RoleBinding. **Must differ from `APP_NAME`** to avoid colliding with the CNPG-managed ServiceAccount. | `immich-database-retention` |
+| `DB_NAME` | Initial database name | `immich` |
+| `DB_OWNER` | App user that owns `DB_NAME` | `immich` |
+| `INSTANCES` | Replica count (1 for non-HA) | `1` |
+| `STORAGE_CLASS` | StorageClass for the PG data PVC | `zfs-nvmeof-2` |
+| `STORAGE_SIZE` | PVC size | `10Gi` |
+| `IMAGE_NAME` | Postgres container image | `ghcr.io/cloudnative-pg/postgresql:17` |
+| `MEMORY_REQUEST` / `MEMORY_LIMIT` | Per-instance memory ask | `1Gi` / `2Gi` |
+| `BACKUP_SCHEDULE` | Cron for ScheduledBackup (CNPG: leading seconds field) | `0 0 3 * * *` |
+| `SNAPSHOT_CLASS` | VolumeSnapshotClass for backups | `zfs-nvmeof-2-snapshots` |
+| `BACKUP_RETENTION` | Days to retain Backup CRs. **Format: `Nd` (days only)** — the retention CronJob errors on any other suffix. | `30d` |
+
+## Retention
+
+CNPG's `spec.backup.retentionPolicy` is **Barman-only** and is silently
+ignored when `method: volumeSnapshot` (see
+`internal/webhook/v1/cluster_webhook.go:2640` and
+`docs/src/backup.md:158` — "Volume Snapshots: Do not support retention
+policies"). That field is therefore intentionally absent from this
+Component's `Cluster` CR.
+
+Retention is enforced by `retention-cronjob.yaml`:
+
+- Runs daily at **04:00 UTC** (1 hour after the typical 03:00 backup
+  window; schedule is hardcoded — edit the file if your tenant differs).
+- Lists `Backup` CRs labelled `cnpg.io/cluster=<APP_NAME>` in the
+  tenant's namespace.
+- Deletes any whose `metadata.creationTimestamp` is older than
+  `BACKUP_RETENTION` days.
+- CNPG sets owner references on the VolumeSnapshot it creates per
+  Backup → deleting the Backup cascade-deletes the VolumeSnapshot →
+  with `deletionPolicy: Delete` on the VolumeSnapshotClass, the
+  underlying ZFS snapshot also goes away.
+
+If CNPG eventually ships plugin-based retention (e.g. via the Barman
+Cloud Plugin or similar), this CronJob becomes redundant and can be
+removed in a Component refresh.
 
 ## Adding a vector / non-default extension
 

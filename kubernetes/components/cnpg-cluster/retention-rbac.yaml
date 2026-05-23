@@ -1,0 +1,31 @@
+---
+# RBAC for the retention CronJob. Scoped to a single namespace (the
+# tenant's). Only powers: list + delete Backup CRs for THIS cluster.
+# Deleting a Backup CR cascade-deletes its child VolumeSnapshot (owner
+# reference set by CNPG), which cascade-deletes the underlying ZFS
+# snapshot (deletionPolicy: Delete on the VolumeSnapshotClass).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: PLACEHOLDER_RETENTION_NAME        # replaced via kustomize
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: PLACEHOLDER_RETENTION_NAME        # replaced via kustomize
+rules:
+  - apiGroups: ["postgresql.cnpg.io"]
+    resources: ["backups"]
+    verbs: ["get", "list", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: PLACEHOLDER_RETENTION_NAME        # replaced via kustomize
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: PLACEHOLDER_RETENTION_NAME        # replaced via kustomize
+subjects:
+  - kind: ServiceAccount
+    name: PLACEHOLDER_RETENTION_NAME      # replaced via kustomize

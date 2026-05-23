@@ -1,0 +1,19 @@
+---
+# Manually-managed PodMonitor (replaces the deprecated
+# spec.monitoring.enablePodMonitor field on the Cluster CR per CNPG
+# upstream guidance — see internal/webhook/v1/cluster_webhook.go:2675).
+# Scraped by the cluster-wide kube-prometheus-stack which already has
+# PodMonitorSelectorNilUsesHelmValues: false set, so any namespace's
+# PodMonitor is picked up automatically.
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: PLACEHOLDER_APP_NAME          # replaced via kustomize
+  labels:
+    cnpg.io/cluster: PLACEHOLDER_APP_NAME   # replaced via kustomize
+spec:
+  selector:
+    matchLabels:
+      cnpg.io/cluster: PLACEHOLDER_APP_NAME   # replaced via kustomize
+  podMetricsEndpoints:
+    - port: metrics
