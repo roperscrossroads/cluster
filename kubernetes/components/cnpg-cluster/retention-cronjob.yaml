@@ -28,7 +28,15 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: prune
-              image: docker.io/bitnami/kubectl:1.32
+              # alpine/k8s ships kubectl + sh + jq + yq on alpine. We
+              # avoided registry.k8s.io/kubectl because its entrypoint
+              # IS kubectl (distroless, no shell). We avoided the
+              # bitnami image because docker.io/bitnami/kubectl no
+              # longer publishes versioned tags — Bitnami restructured
+              # their catalog and only `latest` remains under
+              # bitnami/kubectl (versioned tags moved to the frozen
+              # bitnamilegacy/* org).
+              image: docker.io/alpine/k8s:1.32.4
               env:
                 - name: CLUSTER_NAME
                   value: PLACEHOLDER_APP_NAME              # replaced via kustomize
@@ -43,12 +51,19 @@ spec:
                 - -c
                 - |
                   set -eu
+                  # Date math is written for BusyBox `date` (alpine).
+                  # GNU `date -d "N days ago"` is NOT portable to
+                  # BusyBox, so we compute epoch arithmetic instead.
+                  # k8s creationTimestamps look like "2026-04-23T00:00:00Z";
+                  # BusyBox `date -d` won't parse that directly — we
+                  # munge to "2026-04-23 00:00:00" first.
                   case "$BACKUP_RETENTION" in
                     *d) DAYS="${BACKUP_RETENTION%d}" ;;
                     *) echo "ERROR: BACKUP_RETENTION='$BACKUP_RETENTION' — only Nd format supported"; exit 1 ;;
                   esac
-                  CUTOFF_EPOCH=$(date -u -d "$DAYS days ago" +%s)
-                  CUTOFF_READABLE=$(date -u -d "$DAYS days ago" --iso-8601=seconds)
+                  NOW=$(date -u +%s)
+                  CUTOFF_EPOCH=$((NOW - DAYS * 86400))
+                  CUTOFF_READABLE=$(date -u -d "@$CUTOFF_EPOCH" "+%Y-%m-%dT%H:%M:%SZ")
                   echo "Pruning Backup CRs for cluster=$CLUSTER_NAME in ns=$NAMESPACE older than $CUTOFF_READABLE"
                   STALE=""
                   for line in $(kubectl get backup -n "$NAMESPACE" \
@@ -56,7 +71,8 @@ spec:
                       -o jsonpath='{range .items[*]}{.metadata.name}={.metadata.creationTimestamp}{"\n"}{end}'); do
                     NAME="${line%=*}"
                     TS="${line#*=}"
-                    TS_EPOCH=$(date -u -d "$TS" +%s)
+                    TS_CLEAN=$(echo "$TS" | sed -e 's/T/ /' -e 's/Z$//')
+                    TS_EPOCH=$(date -u -d "$TS_CLEAN" +%s)
                     if [ "$TS_EPOCH" -lt "$CUTOFF_EPOCH" ]; then
                       STALE="$STALE $NAME"
                     fi

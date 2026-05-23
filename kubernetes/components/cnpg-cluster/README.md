@@ -168,10 +168,33 @@ Retention is enforced by `retention-cronjob.yaml`:
   tenant's namespace.
 - Deletes any whose `metadata.creationTimestamp` is older than
   `BACKUP_RETENTION` days.
-- CNPG sets owner references on the VolumeSnapshot it creates per
-  Backup → deleting the Backup cascade-deletes the VolumeSnapshot →
-  with `deletionPolicy: Delete` on the VolumeSnapshotClass, the
-  underlying ZFS snapshot also goes away.
+- The Component's Cluster CR sets
+  `spec.backup.volumeSnapshot.snapshotOwnerReference: backup` so CNPG
+  stamps an `ownerReference` on each created `VolumeSnapshot` pointing
+  at the parent `Backup`. Deleting the `Backup` therefore cascade-deletes
+  the `VolumeSnapshot`, and with `deletionPolicy: Delete` on the
+  VolumeSnapshotClass, the underlying ZFS snapshot also goes away.
+  (CNPG defaults this to `none`; we override because that default
+  would orphan snapshot bytes whenever the CronJob pruned a Backup.)
+
+### Caveat: manually-created Backup CRs
+
+CNPG only stamps the `cnpg.io/cluster=<APP_NAME>` label on `Backup`
+CRs spawned by a `ScheduledBackup` (see
+`internal/controller/scheduledbackup_controller.go:321`). If you
+manually create a `Backup` CR — e.g. for ad-hoc testing or a
+pre-upgrade recovery checkpoint — you **must** add the label
+yourself:
+
+```yaml
+metadata:
+  labels:
+    cnpg.io/cluster: <APP_NAME>     # e.g. immich-database
+```
+
+Without it, the retention CronJob's label selector won't see your
+Backup and it will live forever (along with its VolumeSnapshot, since
+that snapshot has an `ownerReference` back to this Backup).
 
 If CNPG eventually ships plugin-based retention (e.g. via the Barman
 Cloud Plugin or similar), this CronJob becomes redundant and can be

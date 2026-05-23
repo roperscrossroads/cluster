@@ -56,3 +56,9 @@ spec:
     # See retention-cronjob.yaml for the actual retention mechanism.
     volumeSnapshot:
       className: PLACEHOLDER_SNAPSHOT_CLASS         # replaced
+      # 'backup' so deleting a Backup CR cascade-deletes its
+      # VolumeSnapshot; required by our retention CronJob. CNPG
+      # defaults this to 'none' (see api/v1/cluster_types.go:165) —
+      # with no owner ref, retention would delete Backup CRs while
+      # orphaning the actual snapshot bytes. Values: none|cluster|backup.
+      snapshotOwnerReference: backup
