@@ -5,7 +5,7 @@
 apiVersion: postgresql.cnpg.io/v1
 kind: ScheduledBackup
 metadata:
-  name: PLACEHOLDER_APP_NAME-snap      # replaced
+  name: PLACEHOLDER_APP_NAME      # replaced; shares the Cluster's name (different Kind, no collision). Backup CRs are timestamped by CNPG.
 spec:
   schedule: PLACEHOLDER_BACKUP_SCHEDULE   # replaced; cron format with leading seconds field per CNPG
   backupOwnerReference: self

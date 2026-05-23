@@ -44,8 +44,8 @@ replacements:
     targets:
       - select: { kind: Cluster, name: PLACEHOLDER_APP_NAME }
         fieldPaths: [metadata.name]
-      - select: { kind: ScheduledBackup, name: PLACEHOLDER_APP_NAME-snap }
-        fieldPaths: [spec.cluster.name]
+      - select: { kind: ScheduledBackup, name: PLACEHOLDER_APP_NAME }
+        fieldPaths: [metadata.name, spec.cluster.name]
   - source: { kind: ConfigMap, name: cnpg-cluster-config, fieldPath: data.INSTANCES }
     targets:
       - select: { kind: Cluster, name: PLACEHOLDER_APP_NAME }
@@ -88,7 +88,7 @@ replacements:
         fieldPaths: [spec.backup.volumeSnapshot.className]
   - source: { kind: ConfigMap, name: cnpg-cluster-config, fieldPath: data.BACKUP_SCHEDULE }
     targets:
-      - select: { kind: ScheduledBackup, name: PLACEHOLDER_APP_NAME-snap }
+      - select: { kind: ScheduledBackup, name: PLACEHOLDER_APP_NAME }
         fieldPaths: [spec.schedule]
 ```
 
@@ -113,9 +113,23 @@ spec:
       - vchord.so
 ```
 
-Add it to the `resources:` list (NOT `patches:` — kustomize strategic-merge
-applies via apiVersion+kind+name matching when the same resource is listed
-twice). Replacements above will substitute the name placeholder in both files.
+Add it to the consumer kustomization.yaml's `patches:` list (NOT `resources:`
+— kustomize forbids two resources with the same id):
+
+```yaml
+patches:
+  - path: ./cluster-extras.yaml
+    target:
+      group: postgresql.cnpg.io
+      version: v1
+      kind: Cluster
+      name: PLACEHOLDER_APP_NAME
+```
+
+Strategic-merge layers `shared_preload_libraries` and `postInitApplicationSQL`
+onto the Component's Cluster. The replacements block above substitutes the
+`PLACEHOLDER_APP_NAME` in both the Component's Cluster and (post-patch) the
+result.
 
 ## Important: snapshot consistency
 
