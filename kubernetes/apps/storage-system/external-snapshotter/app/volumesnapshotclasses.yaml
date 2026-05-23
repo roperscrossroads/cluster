@@ -1,0 +1,17 @@
+---
+# Snapshots taken via these classes ride the underlying ZFS snapshot
+# mechanism on the backing democratic-csi VM. deletionPolicy: Delete
+# means tearing down a VolumeSnapshot CR also removes the ZFS snapshot.
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: zfs-nvmeof-1-snapshots
+driver: org.democratic-csi.zfs-nvmeof-1
+deletionPolicy: Delete
+---
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: zfs-nvmeof-2-snapshots
+driver: org.democratic-csi.zfs-nvmeof-2
+deletionPolicy: Delete
