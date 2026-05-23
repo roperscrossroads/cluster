@@ -16,10 +16,11 @@ components:
   - ../../../components/cnpg-cluster
 
 resources:
-  - ./cluster-extras.yaml      # optional: strategic-merge patch for
-                               #           shared_preload_libraries,
-                               #           postInitApplicationSQL, etc.
   # ... other app resources
+
+# If your tenant needs Postgres extensions (e.g. vchord), add a
+# strategic-merge patch — see "Adding a vector / non-default extension"
+# below for the cluster-extras.yaml pattern.
 
 configMapGenerator:
   - name: cnpg-cluster-config
