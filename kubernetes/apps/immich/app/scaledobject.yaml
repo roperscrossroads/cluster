@@ -47,28 +47,30 @@ spec:
   pollingInterval: 30
   cooldownPeriod: 300
   triggers:
+    # FQDN required: keda-operator runs in keda-system namespace, so a
+    # bare `immich-valkey` hostname fails DNS resolution.
     - type: redis
       metadata:
-        address: immich-valkey:6379
+        address: immich-valkey.immich.svc.cluster.local:6379
         listName: immich_bull:thumbnailGeneration:wait
         listLength: "1"
     - type: redis
       metadata:
-        address: immich-valkey:6379
+        address: immich-valkey.immich.svc.cluster.local:6379
         listName: immich_bull:faceDetection:wait
         listLength: "1"
     - type: redis
       metadata:
-        address: immich-valkey:6379
+        address: immich-valkey.immich.svc.cluster.local:6379
         listName: immich_bull:smartSearch:wait
         listLength: "1"
     - type: redis
       metadata:
-        address: immich-valkey:6379
+        address: immich-valkey.immich.svc.cluster.local:6379
         listName: immich_bull:duplicateDetection:wait
         listLength: "1"
     - type: redis
       metadata:
-        address: immich-valkey:6379
+        address: immich-valkey.immich.svc.cluster.local:6379
         listName: immich_bull:ocr:wait
         listLength: "1"
