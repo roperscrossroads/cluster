@@ -43,13 +43,14 @@ spec:
                     key: dbname
 
     immich:
-      # Rendered into the immich-config.yaml ConfigMap by the chart and
-      # mounted at /config/. Seeds Immich's persistent system config so
-      # share-link / email / mobile sharing URLs are correct on first
-      # boot. Admin UI changes still take precedence later.
-      configuration:
-        server:
-          externalDomain: "https://immich.ropxr.dev"
+      # NOTE: do NOT add `configuration:` here. When the chart renders
+      # an immich-config.yaml ConfigMap, the chart also sets the
+      # IMMICH_CONFIG_FILE env on the server, and Immich's server-side
+      # logic at services/system-config.service.ts:60 then makes the
+      # ENTIRE System Settings UI read-only (any save returns 400).
+      # Lesson learned 2026-05-23: seeding one field cost the whole
+      # admin UI. All settings (externalDomain, storage template, trash
+      # days, etc.) belong in the admin UI / DB, configured post-deploy.
       persistence:
         library:
           existingClaim: immich-library
