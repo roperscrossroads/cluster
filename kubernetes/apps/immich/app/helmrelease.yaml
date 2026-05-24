@@ -98,6 +98,28 @@ spec:
                 limits:
                   cpu: "2"
                   memory: 2Gi
+              # Override the chart's default liveness probe — its
+              # timeoutSeconds:1 + failureThreshold:3 (30s total) is too
+              # aggressive for Node.js under burst load. Server got
+              # kubelet-killed mid-face-detection on 2026-05-24 during
+              # heavy queue + storage-template migration. New tolerance:
+              # 5s × 5 fails = 25s of probe latency before kill (with
+              # periodSeconds:10 that's actually ~50s real wall clock).
+              # Readiness stays at chart defaults so envoy-internal still
+              # quickly removes the pod from LB during real outages —
+              # only liveness (which TRIGGERS RESTART) is relaxed.
+              probes:
+                liveness:
+                  enabled: true
+                  custom: true
+                  spec:
+                    httpGet:
+                      path: /api/server/ping
+                      port: http
+                    initialDelaySeconds: 0
+                    periodSeconds: 10
+                    timeoutSeconds: 5
+                    failureThreshold: 5
 
     machine-learning:
       enabled: true
