@@ -125,6 +125,21 @@ spec:
       enabled: true
       controllers:
         main:
+          # Soft pod anti-affinity: when KEDA scales us beyond 1 (max=3
+          # per scaledobject.yaml), prefer one replica per node so two
+          # ML pods don't pile on the same talos-N starving each other
+          # for CPU. `preferred` not `required` — the scheduler will
+          # still co-locate if it has to (e.g. one node down).
+          pod:
+            affinity:
+              podAntiAffinity:
+                preferredDuringSchedulingIgnoredDuringExecution:
+                  - weight: 100
+                    podAffinityTerm:
+                      topologyKey: kubernetes.io/hostname
+                      labelSelector:
+                        matchLabels:
+                          app.kubernetes.io/name: machine-learning
           containers:
             main:
               image:

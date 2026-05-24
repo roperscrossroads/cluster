@@ -35,10 +35,20 @@
 # resurface if we re-enable scale-to-zero — ~10-30s (image pull
 # cached; ONNX model load is the slow part).
 #
+# Scale-up enabled 2026-05-24: max=3, listLength=5. KEDA target =
+# ceil(LLEN / listLength) per trigger; OR-combines across triggers; HPA
+# caps at maxReplicaCount. Net behavior: any single queue ≥5 jobs adds a
+# pod; ≥10 adds another; ≥15 saturates the band. Sized for our 3-node
+# cluster (one ML pod per node max). Each scaled pod uses ~1.2 GB RAM +
+# ~1.5 cores under load. Cold-start ~10-30s on second/third pod.
+#
 # Tuning levers if behaviour is wrong:
-#   - need more parallelism   → raise maxReplicaCount (currently 1)
-#   - perceived latency spike → lower pollingInterval (currently 30s)
-#   - queue diagnostics       → `valkey-cli LLEN immich_bull:<q>:wait`
+#   - too eager / churn        → raise listLength (currently 5)
+#   - too lazy / backlog grows → lower listLength
+#   - need more parallelism    → raise maxReplicaCount + ensure node
+#                                 RAM headroom (each pod ~4 GB limit)
+#   - perceived latency spike  → lower pollingInterval (currently 30s)
+#   - queue diagnostics        → `valkey-cli LLEN immich_bull:<q>:wait`
 #
 # No TriggerAuthentication needed — valkey is unauthenticated inside
 # the cluster (chart default; not exposed beyond the namespace).
@@ -51,7 +61,7 @@ spec:
   scaleTargetRef:
     name: immich-machine-learning
   minReplicaCount: 1  # always-on: scale-to-zero drops jobs (BullMQ retries 3×/~6s then fails; KEDA's 30s poll loses the race)
-  maxReplicaCount: 1
+  maxReplicaCount: 3
   pollingInterval: 30
   cooldownPeriod: 300
   triggers:
@@ -61,24 +71,24 @@ spec:
       metadata:
         address: immich-valkey.immich.svc.cluster.local:6379
         listName: immich_bull:thumbnailGeneration:wait
-        listLength: "1"
+        listLength: "5"
     - type: redis
       metadata:
         address: immich-valkey.immich.svc.cluster.local:6379
         listName: immich_bull:faceDetection:wait
-        listLength: "1"
+        listLength: "5"
     - type: redis
       metadata:
         address: immich-valkey.immich.svc.cluster.local:6379
         listName: immich_bull:smartSearch:wait
-        listLength: "1"
+        listLength: "5"
     - type: redis
       metadata:
         address: immich-valkey.immich.svc.cluster.local:6379
         listName: immich_bull:duplicateDetection:wait
-        listLength: "1"
+        listLength: "5"
     - type: redis
       metadata:
         address: immich-valkey.immich.svc.cluster.local:6379
         listName: immich_bull:ocr:wait
-        listLength: "1"
+        listLength: "5"
