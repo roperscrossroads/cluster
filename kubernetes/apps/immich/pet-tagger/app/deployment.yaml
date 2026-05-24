@@ -58,16 +58,18 @@ spec:
           volumeMounts:
             - { name: data,  mountPath: /data }
             - { name: cache, mountPath: /root/.cache }
-          # CLIP loaded + idle is ~700-900 MiB. Scans spike higher due to
-          # parallel thumbnail decode. Cap at 2.5 GiB so a runaway scan
-          # can't OOM-kill co-tenants on a 16 GiB N100 node.
+          # Under active scan (CLIP + YOLO + 8 concurrent thumbnail decodes
+          # via SCAN_WORKERS default), the pod climbs past 2 GiB. Initial
+          # 2500Mi limit OOM-killed mid-enrolment 2026-05-24, exit 137.
+          # 4Gi gives real headroom while still capping at 1/4 of a 16 GiB
+          # node so co-tenants can't be starved.
           resources:
             requests:
               cpu: 300m
-              memory: 1Gi
+              memory: 1500Mi
             limits:
               cpu: "2"
-              memory: 2500Mi
+              memory: 4Gi
           readinessProbe:
             httpGet: { path: /health, port: http }
             initialDelaySeconds: 30   # CLIP cold-load takes ~20-30s on N100 CPU

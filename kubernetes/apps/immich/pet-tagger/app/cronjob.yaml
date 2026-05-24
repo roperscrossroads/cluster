@@ -95,7 +95,10 @@ spec:
                   memory: 800Mi
                 limits:
                   cpu: "2"
-                  memory: 2500Mi
+                  # Matches deployment.yaml — 2500Mi OOM-killed during
+                  # active scans, 4Gi gives real headroom under CLIP +
+                  # YOLO + 8 concurrent thumbnail decode load.
+                  memory: 4Gi
           volumes:
             - name: data
               persistentVolumeClaim:
