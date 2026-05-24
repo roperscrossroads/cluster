@@ -45,6 +45,22 @@ spec:
         spec:
           restartPolicy: Never
           priorityClassName: low-priority-preemptible
+          # Same anti-affinity as the Deployment: prefer a node not
+          # running immich-server. Cluster only has 3 nodes; pet-tagger
+          # work is heavy enough that colocation hurts both sides.
+          affinity:
+            podAntiAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 100
+                  podAffinityTerm:
+                    topologyKey: kubernetes.io/hostname
+                    # bjw-s common chart sets name=server, instance=immich
+                    # (not name=immich-server). Both labels required so we
+                    # don't accidentally match any other "server"-named pod.
+                    labelSelector:
+                      matchLabels:
+                        app.kubernetes.io/name: server
+                        app.kubernetes.io/instance: immich
           containers:
             - name: pet-tagger
               image: ghcr.io/tedornitier/immich-pet-tagger:cpu
@@ -94,10 +110,14 @@ spec:
                   cpu: 200m
                   memory: 800Mi
                 limits:
-                  cpu: "2"
-                  # Matches deployment.yaml — 2500Mi OOM-killed during
-                  # active scans, 4Gi gives real headroom under CLIP +
-                  # YOLO + 8 concurrent thumbnail decode load.
+                  # Matches deployment.yaml: 3 cores on a 4-core N100 leaves
+                  # headroom for system + co-tenants. Cronjob runs are
+                  # short, so the CPU bump translates directly to faster
+                  # job completion (and a sooner-released slot).
+                  cpu: "3"
+                  # 2500Mi OOM-killed during active scans, 4Gi gives real
+                  # headroom under CLIP + YOLO + 8 concurrent thumbnail
+                  # decode load.
                   memory: 4Gi
           volumes:
             - name: data

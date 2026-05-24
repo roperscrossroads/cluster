@@ -30,6 +30,25 @@ spec:
         app.kubernetes.io/name: immich-pet-tagger
     spec:
       restartPolicy: Always
+      # Soft anti-affinity: prefer a node that ISN'T running immich-server.
+      # pet-tagger and immich-server are both CPU-heavy and the cluster
+      # only has 3 nodes — without this, scheduler had us share talos-3
+      # with immich-server (node at 85% CPU) while talos-1/2 sat at ~15%.
+      # `preferred` not `required` so a single node failure doesn't
+      # leave us un-schedulable.
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                # bjw-s common chart sets name=server, instance=immich
+                # (not name=immich-server). Both labels required so we
+                # don't accidentally match any other "server"-named pod.
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: server
+                    app.kubernetes.io/instance: immich
       containers:
         - name: pet-tagger
           image: ghcr.io/tedornitier/immich-pet-tagger:cpu
@@ -68,7 +87,11 @@ spec:
               cpu: 300m
               memory: 1500Mi
             limits:
-              cpu: "2"
+              # 3 cores on a 4-core N100 leaves 1 core headroom for the
+              # system + co-tenants. Combined with the anti-affinity
+              # above, this gives real throughput instead of fighting
+              # immich-server for the same 2 cores.
+              cpu: "3"
               memory: 4Gi
           readinessProbe:
             httpGet: { path: /health, port: http }
