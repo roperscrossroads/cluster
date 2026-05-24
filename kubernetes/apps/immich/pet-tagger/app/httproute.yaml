@@ -1,0 +1,30 @@
+---
+# Internal-only. The pet-tagger UI has NO authentication of its own —
+# upstream README is explicit about not exposing it without an
+# authenticated reverse proxy. envoy-internal binds to RFC1918 only and
+# the public DNS A record points at the internal LB IP, so this hostname
+# is unreachable from the internet.
+#
+# If you ever want this on the public envoy-external, you must put
+# Authelia forward-auth in front (see ~/notes/local/infra/services/oidc.md;
+# mind the home.arpa PSL caveat — ropxr.dev is fine).
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: immich-pet-tagger
+  namespace: immich
+spec:
+  parentRefs:
+    - name: envoy-internal
+      namespace: network
+      sectionName: https
+  hostnames:
+    - immich-pet-tagger.ropxr.dev
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: immich-pet-tagger
+          port: 8000

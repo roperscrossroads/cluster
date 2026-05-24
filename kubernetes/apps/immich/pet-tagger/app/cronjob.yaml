@@ -1,0 +1,105 @@
+---
+# PHASE 2: every 6 hours, run one poll cycle (process new photos since
+# last_timestamp, tag them, exit). Currently SUSPENDED — flip
+# `spec.suspend: false` and scale the Deployment to 0 replicas when
+# enrolment is good enough that you trust unattended runs.
+#
+# "Run if you can, but it's not that important" semantics come from:
+#   1. priorityClassName: low-priority-preemptible
+#      - never preempts other pods to start
+#      - first to be evicted under node memory pressure
+#   2. concurrencyPolicy: Forbid
+#      - if a previous run is still going, skip this firing entirely
+#   3. startingDeadlineSeconds: 600
+#      - if the cron controller can't launch within 10 min of the
+#        schedule, give up on this firing (the next 6-hour tick gets a
+#        fresh attempt)
+#   4. activeDeadlineSeconds: 1800 on the JobSpec
+#      - if the pod can't actually scan + finish in 30 min (e.g. stuck
+#        Pending because the cluster is full), kill it. With cron firing
+#        every 6 hours, missing one is fine — the next run picks up where
+#        last_timestamp left off.
+#
+# Entrypoint: a small inline Python wrapper that imports the same modules
+# the upstream main.py uses, runs ONE poll cycle, and exits. The classifier
+# is rebuilt from refs on disk every cycle (poller.py:136), so there is
+# no warm in-process state we lose by exiting.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: immich-pet-tagger-poll
+  namespace: immich
+spec:
+  schedule: "17 */6 * * *"       # every 6h at :17 (offset from common cron storms)
+  timeZone: America/New_York
+  suspend: true                  # flip to false in Phase 2
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1            # one retry then give up; next tick is in 6h anyway
+      activeDeadlineSeconds: 1800
+      template:
+        spec:
+          restartPolicy: Never
+          priorityClassName: low-priority-preemptible
+          containers:
+            - name: pet-tagger
+              image: ghcr.io/tedornitier/immich-pet-tagger:cpu
+              imagePullPolicy: IfNotPresent
+              # Override CMD: one cycle, then exit. Imports are the same
+              # ones main.py uses; state.init() is safe to call outside an
+              # event loop on Python 3.12.
+              command: ["python", "-u", "-c"]
+              args:
+                - |
+                  import state
+                  from pathlib import Path
+                  from embedder import load_embed_cache
+                  from poller import run_poll_cycle, migrate_ref_bboxes
+                  state.init()
+                  load_embed_cache(Path("/data"))
+                  migrate_ref_bboxes(Path("/data"))
+                  run_poll_cycle("/data")
+              workingDir: /app
+              env:
+                - name: TZ
+                  value: America/New_York
+                - name: IMMICH_URL
+                  value: http://immich-server.immich.svc.cluster.local:2283
+                - name: IMMICH_EXTERNAL_URL
+                  value: https://immich.ropxr.dev
+                - name: GPU_WORKERS
+                  value: "1"
+                - name: YOLO_INPUT_SIZE
+                  value: "640"
+                - name: THRESHOLD
+                  value: "0.8"
+                # POLL_INTERVAL is unused in one-shot mode but kept for
+                # parity with the Deployment's env.
+                - name: POLL_INTERVAL
+                  value: "300"
+              envFrom:
+                - secretRef:
+                    name: immich-pet-tagger
+              volumeMounts:
+                - { name: data,  mountPath: /data }
+                - { name: cache, mountPath: /root/.cache }
+              resources:
+                requests:
+                  # Low requests = scheduler finds a slot more easily,
+                  # which matters for the "run if you can" promise.
+                  cpu: 200m
+                  memory: 800Mi
+                limits:
+                  cpu: "2"
+                  memory: 2500Mi
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: immich-pet-tagger-data
+            - name: cache
+              persistentVolumeClaim:
+                claimName: immich-pet-tagger-cache

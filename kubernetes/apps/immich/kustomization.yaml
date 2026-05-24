@@ -9,3 +9,4 @@ components:
 resources:
   - ./namespace.yaml
   - ./app/ks.yaml
+  - ./pet-tagger/ks.yaml

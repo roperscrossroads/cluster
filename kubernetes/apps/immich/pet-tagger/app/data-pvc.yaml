@@ -1,0 +1,16 @@
+---
+# /data — config.json, pet refs (asset_id lists, not images), negatives,
+# last_timestamp, embed cache pickle. Small, but this is the *trained*
+# classifier state — losing it loses weeks of enrolment work. RWX so the
+# Deployment and CronJob can both mount it without coordination.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: immich-pet-tagger-data
+  namespace: immich
+spec:
+  accessModes: [ReadWriteMany]
+  storageClassName: zfs-nfs-1
+  resources:
+    requests:
+      storage: 1Gi

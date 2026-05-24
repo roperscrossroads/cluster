@@ -1,0 +1,88 @@
+---
+# PHASE 1 (current): replicas=1. Runs the FastAPI UI + the built-in 5-minute
+# polling loop. Use this while enrolling pets, gathering refs, and adding
+# negatives — the UI is required for that work.
+#
+# PHASE 2 (later): set replicas=0 once enrolment is stable and let the
+# sibling CronJob take over. The Deployment can stay at replicas=0 between
+# enrolment sessions; bring it back up briefly when you want to refine.
+#
+# Note: this Deployment does NOT use low-priority-preemptible. While the UI
+# is up it's interactive — you don't want it evicted mid-enrolment. The
+# polite-priority pattern is reserved for the CronJob.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: immich-pet-tagger
+  namespace: immich
+  labels:
+    app.kubernetes.io/name: immich-pet-tagger
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate              # single RWX mount; no rolling updates
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: immich-pet-tagger
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: immich-pet-tagger
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: pet-tagger
+          image: ghcr.io/tedornitier/immich-pet-tagger:cpu
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: TZ
+              value: America/New_York
+            - name: IMMICH_URL
+              value: http://immich-server.immich.svc.cluster.local:2283
+            - name: IMMICH_EXTERNAL_URL
+              value: https://immich.ropxr.dev
+            - name: POLL_INTERVAL
+              value: "300"        # 5 min — matches upstream default during enrolment
+            - name: GPU_WORKERS
+              value: "1"          # CPU-only; a second worker just duplicates models in RAM
+            - name: YOLO_INPUT_SIZE
+              value: "640"
+            - name: THRESHOLD
+              value: "0.8"
+          envFrom:
+            - secretRef:
+                name: immich-pet-tagger
+          volumeMounts:
+            - { name: data,  mountPath: /data }
+            - { name: cache, mountPath: /root/.cache }
+          # CLIP loaded + idle is ~700-900 MiB. Scans spike higher due to
+          # parallel thumbnail decode. Cap at 2.5 GiB so a runaway scan
+          # can't OOM-kill co-tenants on a 16 GiB N100 node.
+          resources:
+            requests:
+              cpu: 300m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 2500Mi
+          readinessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 30   # CLIP cold-load takes ~20-30s on N100 CPU
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 5
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: immich-pet-tagger-data
+        - name: cache
+          persistentVolumeClaim:
+            claimName: immich-pet-tagger-cache

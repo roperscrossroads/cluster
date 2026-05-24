@@ -1,0 +1,21 @@
+---
+# Polite priority: pods using this class never preempt anything else, but
+# they themselves are evicted first when a node runs low on memory or a
+# higher-priority pod needs the slot. Exactly the "run if you can, but
+# never push real work out of the way" semantics.
+#
+# Default user-pod priority is 0; system-cluster-critical is 2_000_000_000.
+# Negative values are allowed (-2_147_483_648 .. 1_000_000_000).
+#
+# This object is CLUSTER-SCOPED (not namespaced) — but Kustomize handles
+# that fine; Flux will create it on first sync.
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: low-priority-preemptible
+value: -100
+globalDefault: false
+preemptionPolicy: Never
+description: >-
+  Best-effort workloads. Never preempts other pods. Evicted first under
+  node memory pressure or when a higher-priority pod needs a slot.

@@ -1,0 +1,16 @@
+---
+# /root/.cache — CLIP ViT-B-16 (~350 MB) + YOLO weights (~6 MB). Pure cache:
+# losing it just re-downloads from HuggingFace on next start. But for the
+# CronJob path, that's a 30s-1min cold-start tax every 6 hours we'd rather
+# not pay, hence persisting it. RWX matches data-pvc for symmetry.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: immich-pet-tagger-cache
+  namespace: immich
+spec:
+  accessModes: [ReadWriteMany]
+  storageClassName: zfs-nfs-1
+  resources:
+    requests:
+      storage: 5Gi
