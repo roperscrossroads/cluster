@@ -1,7 +1,15 @@
 ---
-# KEDA scales immich-machine-learning between 0 and 1 based on Redis
-# (valkey) queue depth across the ML-bound BullMQ queues. Triggers are
-# OR-combined: any non-empty queue scales up to 1.
+# KEDA keeps immich-machine-learning pinned at 1 replica always.
+# ScaledObject stays in place so we can scale up to 2+ during heavy
+# upload bursts in future (just bump maxReplicaCount). Triggers are
+# OR-combined: any non-empty queue would scale up within the band.
+#
+# Why minReplicaCount=1 (not 0): scale-to-zero loses jobs. The server
+# enqueues to BullMQ, which retries 3× over ~6s then marks the job
+# failed. KEDA polls every 30s, so by the time the ML pod is starting
+# the jobs are already dead. Empirically observed 2026-05-23: 22
+# photos uploaded with thumbnails generated but ZERO ML (no faces, no
+# CLIP, no OCR) because ML was at 0 replicas during the upload window.
 #
 # Queue key convention (verified empirically against the live valkey
 # instance and Immich v2.7.5 source at
@@ -23,14 +31,14 @@
 # clustering (no ML call), so it's excluded here — it doesn't need the
 # ML container running.
 #
-# Cold-start cost: ~10-30s (image pull is cached; ONNX model load is
-# the slow part). Acceptable for background work; users see
-# thumbnails/search results appear after the first job lands.
+# Cold-start cost: not paid in steady state (pinned at 1). Would only
+# resurface if we re-enable scale-to-zero — ~10-30s (image pull
+# cached; ONNX model load is the slow part).
 #
 # Tuning levers if behaviour is wrong:
-#   - 0↔1 flapping            → raise cooldownPeriod (currently 300s)
+#   - need more parallelism   → raise maxReplicaCount (currently 1)
 #   - perceived latency spike → lower pollingInterval (currently 30s)
-#   - never scales to zero    → check `valkey-cli LLEN immich_bull:<q>:wait`
+#   - queue diagnostics       → `valkey-cli LLEN immich_bull:<q>:wait`
 #
 # No TriggerAuthentication needed — valkey is unauthenticated inside
 # the cluster (chart default; not exposed beyond the namespace).
@@ -42,7 +50,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: immich-machine-learning
-  minReplicaCount: 0
+  minReplicaCount: 1  # always-on: scale-to-zero drops jobs (BullMQ retries 3×/~6s then fails; KEDA's 30s poll loses the race)
   maxReplicaCount: 1
   pollingInterval: 30
   cooldownPeriod: 300
