@@ -41,3 +41,22 @@ spec:
       driver:
         image:
           tag: v1.9.5
+  # See democratic-csi-zfs-nfs-1/app/helmrelease.yaml for rationale.
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              kind: DaemonSet
+              name: democratic-csi-zfs-nvmeof-1-node
+            patch: |
+              apiVersion: apps/v1
+              kind: DaemonSet
+              metadata:
+                name: democratic-csi-zfs-nvmeof-1-node
+              spec:
+                template:
+                  spec:
+                    containers:
+                    - name: driver-registrar
+                      livenessProbe:
+                        timeoutSeconds: 5

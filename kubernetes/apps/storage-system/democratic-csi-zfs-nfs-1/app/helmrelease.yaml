@@ -43,3 +43,26 @@ spec:
       driver:
         image:
           tag: v1.9.5
+  # Chart hardcodes csi-node-driver-registrar's livenessProbe exec
+  # command but leaves timing fields unset, so kubelet defaults to
+  # timeoutSeconds=1. The exec probe times out under any node load
+  # spike (e.g. cluster-wide reboot) and triggers a restart-storm —
+  # observed 2026-05-29, 95+ restarts on the mini3 pod. Bump to 5s.
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              kind: DaemonSet
+              name: democratic-csi-zfs-nfs-1-node
+            patch: |
+              apiVersion: apps/v1
+              kind: DaemonSet
+              metadata:
+                name: democratic-csi-zfs-nfs-1-node
+              spec:
+                template:
+                  spec:
+                    containers:
+                    - name: driver-registrar
+                      livenessProbe:
+                        timeoutSeconds: 5
