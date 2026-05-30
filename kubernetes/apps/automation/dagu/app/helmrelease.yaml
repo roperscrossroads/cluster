@@ -217,6 +217,20 @@ spec:
     coordinator:
       replicas: 1
       healthPort: 8091
+      # Coordinator is latency-sensitive: it heartbeats workers over gRPC and
+      # holds distributed-run leases. The chart-default 200m CPU limit caused
+      # CFS throttling on ~55% of scheduling periods, which made it miss
+      # heartbeats -> leases expired -> healthy runs marked stale/FAILED ->
+      # OPERATION_RETRY churn (and one liveness-probe restart). The worker pool
+      # had 500m headroom while this CPU-bound component had none. Give it room;
+      # memory stays bounded.
+      resources:
+        requests:
+          cpu: "200m"
+          memory: "256Mi"
+        limits:
+          cpu: "1000m"
+          memory: "512Mi"
     ui:
       replicas: 1
       service:
