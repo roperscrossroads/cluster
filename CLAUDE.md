@@ -51,6 +51,10 @@ Don't put narrative or runbooks here — they live in `~/notes`:
 
 ## Secrets
 
+> Full SOPS/age guide (both this repo and `~/infra-new`, with the
+> universal footguns and the per-repo key/path/scope differences):
+> [`~/notes/local/infra/sops-age.md`](../notes/local/infra/sops-age.md).
+
 - All secrets are sops-encrypted with **age** (recipient
   `age12rzq0cuqfyh8syej8v26530zhhcag0d9pdsms5sp3c7d4llu7dwq9y2lw5`).
   Private key at `~/cluster/age.key` (gitignored). The same key was
