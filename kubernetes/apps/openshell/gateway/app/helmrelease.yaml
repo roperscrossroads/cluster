@@ -32,6 +32,11 @@ spec:
       dbUrl: "sqlite:/var/openshell/openshell.db"   # gateway PVC (1Gi, cluster-default SC)
       logLevel: info
       disableTls: false
+      # --- Auth (milestone 1): transport mTLS stays on (the server always terminates mTLS),
+      # so only holders of the pki-minted client cert can connect — effectively single-operator.
+      # We skip per-user identity here; OIDC (Authelia) is a follow-up milestone. ---
+      auth:
+        allowUnauthenticatedUsers: true
       # --- Kubernetes sandbox driver ---
       sandboxNamespace: openshell-sandboxes
       enableUserNamespaces: true                     # confirmed working on Talos
