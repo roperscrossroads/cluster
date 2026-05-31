@@ -1,7 +1,10 @@
 ---
-# Default-deny egress for sandbox pods, except DNS + the gateway service.
-# The sandbox -> internal LiteLLM egress rule is added in a later step once the path/CIDR is
-# wired via cluster-secrets (kept out of this file to avoid hardcoding internal addressing).
+# Coarse k8s egress backstop for sandbox pods. The REAL egress gate is OpenShell's own
+# per-binary L7 sandbox policy (operator decision 2026-05-31) — this layer just permits the
+# ports that policy needs (DNS, the gateway, and HTTPS), and denies everything else at L4.
+# Allowing 443-to-any is intentional: it lets subscription coding CLIs (Claude Code →
+# api.anthropic.com, Copilot → *.githubcopilot.com) and the internal LiteLLM endpoint reach
+# out, while OpenShell's supervisor restricts WHICH binaries may reach WHICH hosts at L7.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -12,16 +15,20 @@ spec:
   policyTypes:
     - Egress
   egress:
-    - to: []
+    - to: []                      # DNS
       ports:
         - protocol: UDP
           port: 53
         - protocol: TCP
           port: 53
-    - to:
+    - to:                         # the gateway (supervisor mTLS callback)
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: openshell
       ports:
         - protocol: TCP
           port: 8080
+    - to: []                      # HTTPS — gated per-binary/per-host by OpenShell's L7 policy
+      ports:
+        - protocol: TCP
+          port: 443
