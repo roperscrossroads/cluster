@@ -1,0 +1,58 @@
+---
+# Tightly-scoped identity that copies ONLY the client-tls cert from the gateway namespace
+# into the sandbox namespace. It can read one named secret in `openshell` and write secrets
+# in `openshell-sandboxes` — it has no access to the JWT signing key or server key.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: client-tls-sync
+  namespace: openshell
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: client-tls-read
+  namespace: openshell
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["openshell-client-tls"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: client-tls-read
+  namespace: openshell
+subjects:
+  - kind: ServiceAccount
+    name: client-tls-sync
+    namespace: openshell
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: client-tls-read
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: client-tls-write
+  namespace: openshell-sandboxes
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: client-tls-write
+  namespace: openshell-sandboxes
+subjects:
+  - kind: ServiceAccount
+    name: client-tls-sync
+    namespace: openshell
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: client-tls-write

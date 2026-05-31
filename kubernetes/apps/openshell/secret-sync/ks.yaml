@@ -1,0 +1,18 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: openshell-secret-sync
+spec:
+  interval: 1h
+  path: ./kubernetes/apps/openshell/secret-sync/app
+  prune: true
+  dependsOn:
+    - name: openshell-gateway        # source secret (openshell-client-tls) is created by the gateway's pkiInitJob
+    - name: openshell-sandboxes      # destination namespace must exist
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  wait: false
+  timeout: 5m

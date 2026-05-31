@@ -9,3 +9,4 @@ resources:
   - ./agent-sandbox/ks.yaml
   - ./gateway/ks.yaml
   - ./sandboxes/ks.yaml
+  - ./secret-sync/ks.yaml

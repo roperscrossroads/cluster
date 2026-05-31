@@ -1,0 +1,45 @@
+---
+# Replicates openshell-client-tls (a client cert, designed to live inside sandbox pods) from
+# the gateway namespace into the sandbox namespace, which the OpenShell chart does not do when
+# sandboxes run in a separate namespace. Idempotent; the cert is effectively static (certgen
+# regenerates only if the source secret is deleted), so a periodic reconcile is sufficient.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: client-tls-sync
+  namespace: openshell
+spec:
+  schedule: "*/5 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 120
+      template:
+        spec:
+          serviceAccountName: client-tls-sync
+          restartPolicy: Never
+          containers:
+            - name: sync
+              image: docker.io/alpine/k8s:1.32.4
+              command:
+                - sh
+                - -ceu
+                - |
+                  kubectl get secret openshell-client-tls -n openshell -o json \
+                    | jq 'del(.metadata.namespace, .metadata.uid, .metadata.resourceVersion,
+                              .metadata.creationTimestamp, .metadata.managedFields,
+                              .metadata.ownerReferences, .metadata.annotations, .status)' \
+                    | kubectl apply -n openshell-sandboxes -f -
+                  echo "synced openshell-client-tls -> openshell-sandboxes"
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+                seccompProfile:
+                  type: RuntimeDefault
+              resources:
+                requests: { cpu: "10m", memory: "32Mi" }
+                limits: { memory: "64Mi" }
