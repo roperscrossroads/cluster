@@ -1,0 +1,15 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: openshell-agent-sandbox
+spec:
+  interval: 1h
+  path: ./kubernetes/apps/openshell/agent-sandbox/app
+  prune: false              # never prune the controller/CRDs from under running sandboxes
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  wait: true                # gateway depends on this being established
+  timeout: 5m

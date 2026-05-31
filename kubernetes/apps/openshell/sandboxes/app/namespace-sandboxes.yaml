@@ -1,0 +1,14 @@
+---
+# Sandbox pods run here with elevated, user-namespace-confined capabilities
+# (SYS_ADMIN/NET_ADMIN via hostUsers:false — verified on the cluster). Quarantined to a
+# privileged-PSA namespace + NetworkPolicy lockdown + a dedicated tainted node.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshell-sandboxes
+  annotations:
+    kustomize.toolkit.fluxcd.io/prune: disabled
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/warn: privileged

@@ -1,0 +1,27 @@
+---
+# Default-deny egress for sandbox pods, except DNS + the gateway service.
+# The sandbox -> internal LiteLLM egress rule is added in a later step once the path/CIDR is
+# wired via cluster-secrets (kept out of this file to avoid hardcoding internal addressing).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: sandbox-egress-lockdown
+  namespace: openshell-sandboxes
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshell
+      ports:
+        - protocol: TCP
+          port: 8080

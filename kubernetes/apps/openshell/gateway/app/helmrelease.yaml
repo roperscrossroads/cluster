@@ -1,0 +1,59 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: openshell
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: helm-chart
+      version: "0.0.51"
+      sourceRef:
+        kind: HelmRepository
+        name: openshell
+      interval: 1h
+  values:
+    image:
+      repository: ghcr.io/nvidia/openshell/gateway
+      tag: "0.0.51"
+      pullPolicy: IfNotPresent
+    supervisor:
+      image:
+        repository: ghcr.io/nvidia/openshell/supervisor
+        tag: "0.0.51"
+      sideloadMethod: "image-volume"      # k8s 1.36 ⇒ ImageVolume GA (verified on cluster)
+    # --- TLS + JWT: self-contained self-signed pkiInitJob (internal mTLS control plane) ---
+    pkiInitJob:
+      enabled: true
+    certManager:
+      enabled: false
+    server:
+      dbUrl: "sqlite:/var/openshell/openshell.db"   # gateway PVC (1Gi, cluster-default SC)
+      logLevel: info
+      disableTls: false
+      # --- Kubernetes sandbox driver ---
+      sandboxNamespace: openshell-sandboxes
+      enableUserNamespaces: true                     # confirmed working on Talos
+      sandboxImage: "ghcr.io/nvidia/openshell-community/sandboxes/base:latest"
+      sandboxImagePullPolicy: IfNotPresent
+      workspaceDefaultStorageSize: "10Gi"
+      # grpcEndpoint empty → auto: https://openshell.openshell.svc.cluster.local:8080
+    postgres:
+      enabled: false
+    grpcRoute:
+      enabled: false                                 # M1: port-forward; GRPCRoute deferred
+    # --- gateway pinned to the dedicated sandbox node via label + toleration ---
+    nodeSelector:
+      openshell.io/sandboxes: "true"
+    tolerations:
+      - key: "openshell.io/sandboxes"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "256Mi"
+      limits:
+        memory: "512Mi"
