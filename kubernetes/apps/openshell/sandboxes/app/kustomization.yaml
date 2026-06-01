@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - ./namespace-sandboxes.yaml
   - ./networkpolicy.yaml
+  - ./secrets/registry-auth.sops.yaml

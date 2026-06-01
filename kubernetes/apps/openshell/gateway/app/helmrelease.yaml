@@ -62,3 +62,20 @@ spec:
         memory: "256Mi"
       limits:
         memory: "512Mi"
+  # Attach the internal-Zot pull secret to the chart-managed sandbox SA so BYOC
+  # sandbox pods (e.g. Hermes, Phase B) can pull from the auth-required registry.
+  # The chart exposes no sandbox-SA imagePullSecret value and the SA is Helm-managed,
+  # so we inject it via a postRenderer (same pattern as the dagu HelmRelease).
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              version: v1
+              kind: ServiceAccount
+              name: openshell-sandbox
+              namespace: openshell-sandboxes
+            patch: |
+              - op: add
+                path: /imagePullSecrets
+                value:
+                  - name: internal-registry-auth
