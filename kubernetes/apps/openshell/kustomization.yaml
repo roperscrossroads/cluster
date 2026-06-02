@@ -10,3 +10,4 @@ resources:
   - ./gateway/ks.yaml
   - ./sandboxes/ks.yaml
   - ./secret-sync/ks.yaml
+  - ./litellm-route/ks.yaml

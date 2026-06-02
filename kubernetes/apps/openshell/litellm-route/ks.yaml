@@ -1,0 +1,32 @@
+---
+# Flux Kustomization for the in-cluster LiteLLM inference route.
+#
+# Gives OpenShell sandboxes a TLS endpoint for local inference that rides the
+# existing envoy-internal gateway + wildcard *.ropxr.dev cert, instead of the
+# direct plaintext :4000 hop (which the sandbox egress NetworkPolicy blocks and
+# which would carry the vkey in cleartext). The actual upstream is the LiteLLM
+# proxy on the litellm-compute LXC, fronted by a co-located Caddy TLS terminator
+# on :4443 (real LE cert for litellmd.ropxr.dev via DNS-01) — see the companion
+# infra-new change. envoy validates that backend cert against public roots.
+#
+# No dependsOn: the route attaches to envoy-internal (network ns), reconciled
+# independently; until it is up the route simply does not program.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: openshell-litellm-route
+spec:
+  interval: 1h
+  path: ./kubernetes/apps/openshell/litellm-route/app
+  prune: true
+  targetNamespace: openshell
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  wait: false
+  timeout: 5m
+  postBuild:
+    substituteFrom:
+      - name: cluster-secrets
+        kind: Secret

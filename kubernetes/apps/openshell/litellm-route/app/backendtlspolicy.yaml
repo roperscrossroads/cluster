@@ -1,0 +1,26 @@
+---
+# Makes envoy originate TLS to the upstream (the litellm-compute Caddy
+# terminator on :4443) instead of plaintext, closing the cleartext-vkey hop.
+# Because the terminator serves a real Let's Encrypt cert for litellmd.<domain>,
+# `wellKnownCACertificates: System` validates it against public roots — no
+# custom CA ConfigMap. envoy sends SNI = hostname and verifies the cert SAN
+# matches it. litellmd.<domain> is a cert-only name (no DNS record required;
+# envoy dials the EndpointSlice IP directly and uses this name only for SNI +
+# validation), mirroring the existing litellm/litellmd home.arpa split.
+# ${SECRET_DOMAIN} is substituted by Flux postBuild (see ks.yaml).
+#
+# API version v1 — confirmed accepted by the live CRD (v1alpha3 is deprecated).
+apiVersion: gateway.networking.k8s.io/v1
+kind: BackendTLSPolicy
+metadata:
+  name: litellm-upstream
+  namespace: openshell
+spec:
+  targetRefs:
+    - group: ""
+      kind: Service
+      name: litellm-upstream
+      sectionName: https
+  validation:
+    wellKnownCACertificates: System
+    hostname: litellmd.${SECRET_DOMAIN}

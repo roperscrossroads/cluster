@@ -1,0 +1,27 @@
+---
+# Hand-managed EndpointSlice backing the selector-less litellm-upstream Service.
+# Points at the LiteLLM-compute Caddy TLS terminator (:4443 -> 127.0.0.1:4000).
+#
+# NOTE (public mirror): this hardcodes the compute-VLAN backend IP. The operator
+# accepted that exposure when choosing this design. To keep the RFC1918 address
+# out of world-readable history instead, replace the literal with a Flux
+# substitution var (e.g. ${LITELLM_BACKEND_IP}), add that key to
+# kubernetes/components/sops/cluster-secrets.sops.yaml, and add
+# `postBuild.substituteFrom: [{name: cluster-secrets, kind: Secret}]` to ks.yaml.
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: litellm-upstream
+  namespace: openshell
+  labels:
+    kubernetes.io/service-name: litellm-upstream
+addressType: IPv4
+ports:
+  - name: https
+    port: 4443
+    protocol: TCP
+endpoints:
+  - addresses:
+      - "172.16.20.42"
+    conditions:
+      ready: true

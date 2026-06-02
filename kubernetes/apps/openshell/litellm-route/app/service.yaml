@@ -1,0 +1,17 @@
+---
+# Selector-less Service: its endpoints are supplied by the hand-authored
+# EndpointSlice below (the LiteLLM upstream lives outside the cluster, on the
+# litellm-compute LXC, so there is no pod to select). The port name "https"
+# must match the EndpointSlice port name and the BackendTLSPolicy sectionName.
+apiVersion: v1
+kind: Service
+metadata:
+  name: litellm-upstream
+  namespace: openshell
+spec:
+  type: ClusterIP
+  ports:
+    - name: https
+      port: 4443
+      targetPort: 4443
+      protocol: TCP

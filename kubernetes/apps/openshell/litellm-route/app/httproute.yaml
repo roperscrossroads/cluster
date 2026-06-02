@@ -1,0 +1,27 @@
+---
+# Internal-only route on envoy-internal. external-dns publishes
+# litellm.<domain> as a CNAME to the gateway target (internal.<domain> ->
+# DNS-only A 172.16.21.101) — resolvable from anywhere, reachable only on the
+# LAN. The wildcard *.<domain> cert on the gateway https listener covers TLS to
+# the client (the sandbox). Sandboxes call https://litellm.<domain>/v1.
+# ${SECRET_DOMAIN} is substituted by Flux postBuild (see ks.yaml).
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: litellm
+  namespace: openshell
+spec:
+  parentRefs:
+    - name: envoy-internal
+      namespace: network
+      sectionName: https
+  hostnames:
+    - litellm.${SECRET_DOMAIN}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: litellm-upstream
+          port: 4443
