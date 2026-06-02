@@ -22,6 +22,13 @@ spec:
         - path:
             type: PathPrefix
             value: /
+      # The backend Caddy terminator vhost (and its cert/SNI) is litellmd.<domain>;
+      # rewrite the Host so it matches (otherwise Caddy sees the route host
+      # litellm.<domain>, finds no vhost, and returns an empty default 200).
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            hostname: litellmd.${SECRET_DOMAIN}
       backendRefs:
         - name: litellm-upstream
           port: 4443
