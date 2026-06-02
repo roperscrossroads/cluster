@@ -1,0 +1,21 @@
+---
+# external-dns's gateway-httproute source is scoped to --gateway-name=envoy-external,
+# so it does NOT auto-create records for envoy-INTERNAL routes (the existing
+# *.ropxr.dev internal A records were made out-of-band during the 2026-05-18
+# migration). external-dns also runs --source=crd for DNSEndpoint, so we declare
+# the record here: litellm.<domain> -> the envoy-internal LB IP, DNS-only
+# (cloudflare-proxied: false — 172.16.21.101 is RFC1918, unproxyable and meant to
+# be LAN-only). "Resolvable from the internet, unreachable from it."
+apiVersion: externaldns.k8s.io/v1alpha1
+kind: DNSEndpoint
+metadata:
+  name: litellm
+  namespace: openshell
+  annotations:
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "false"
+spec:
+  endpoints:
+    - dnsName: "litellm.${SECRET_DOMAIN}"
+      recordType: A
+      targets:
+        - "172.16.21.101"
