@@ -19,3 +19,9 @@ spec:
       recordType: A
       targets:
         - "172.16.21.101"
+      # The crd source needs the proxied flag per-endpoint (the metadata
+      # annotation alone isn't honored here); Cloudflare rejects a proxied
+      # record pointing at an RFC1918 target.
+      providerSpecific:
+        - name: external-dns.alpha.kubernetes.io/cloudflare-proxied
+          value: "false"
