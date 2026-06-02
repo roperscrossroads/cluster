@@ -32,3 +32,21 @@ spec:
       ports:
         - protocol: TCP
           port: 443
+    # The 443-to-any rule above covers world destinations but NOT the in-cluster
+    # envoy-internal LB VIP (Cilium evaluates egress against the backend pod, on
+    # the service targetPort 10443). This rule realizes the comment's intent of
+    # letting the internal LiteLLM endpoint reach out: sandboxes hit the local
+    # inference route (litellm.<domain>) on envoy-internal, which OpenShell's L7
+    # policy still gates per-binary. 443 + 10443 cover either Cilium policy-eval.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: network
+          podSelector:
+            matchLabels:
+              gateway.envoyproxy.io/owning-gateway-name: envoy-internal
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 10443
