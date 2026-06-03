@@ -41,7 +41,8 @@ spec:
       driver:
         image:
           tag: v1.9.5
-  # See democratic-csi-zfs-nfs-1/app/helmrelease.yaml for rationale.
+  # See democratic-csi-zfs-nfs-1/app/helmrelease.yaml for rationale
+  # (driver-registrar probe bump + controller soft anti-affinity).
   postRenderers:
     - kustomize:
         patches:
@@ -60,3 +61,24 @@ spec:
                     - name: driver-registrar
                       livenessProbe:
                         timeoutSeconds: 5
+          - target:
+              kind: Deployment
+              name: democratic-csi-zfs-nvmeof-1-controller
+            patch: |
+              apiVersion: apps/v1
+              kind: Deployment
+              metadata:
+                name: democratic-csi-zfs-nvmeof-1-controller
+              spec:
+                template:
+                  spec:
+                    affinity:
+                      podAntiAffinity:
+                        preferredDuringSchedulingIgnoredDuringExecution:
+                          - weight: 100
+                            podAffinityTerm:
+                              topologyKey: kubernetes.io/hostname
+                              labelSelector:
+                                matchLabels:
+                                  app.kubernetes.io/name: democratic-csi
+                                  app.kubernetes.io/csi-role: controller

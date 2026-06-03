@@ -43,11 +43,24 @@ spec:
       driver:
         image:
           tag: v1.9.5
-  # Chart hardcodes csi-node-driver-registrar's livenessProbe exec
-  # command but leaves timing fields unset, so kubelet defaults to
-  # timeoutSeconds=1. The exec probe times out under any node load
-  # spike (e.g. cluster-wide reboot) and triggers a restart-storm —
-  # observed 2026-05-29, 95+ restarts on the mini3 pod. Bump to 5s.
+  # Two postRenderer patches (canonical copy — the other three CSI
+  # HelmReleases reference this file):
+  #
+  # 1. DaemonSet driver-registrar livenessProbe timeoutSeconds 1 -> 5.
+  #    Chart hardcodes the exec command but leaves timing unset, so
+  #    kubelet defaults to timeoutSeconds=1. The exec probe times out
+  #    under any node load spike (e.g. cluster-wide reboot) and triggers
+  #    a restart-storm — observed 2026-05-29, 95+ restarts on the mini3
+  #    pod.
+  #
+  # 2. Controller Deployment soft pod anti-affinity. All four CSI
+  #    controllers were landing on the same node; under that pile-up the
+  #    exec liveness probes flapped on the contended node. Prefer a node
+  #    that isn't already running another democratic-csi controller (any
+  #    instance — selector matches name=democratic-csi + csi-role=
+  #    controller, which the node DaemonSet pods don't carry). With 4
+  #    controllers across 3 nodes the best case is a 2-1-1 spread.
+  #    `preferred` so a node loss never leaves a controller unschedulable.
   postRenderers:
     - kustomize:
         patches:
@@ -66,3 +79,24 @@ spec:
                     - name: driver-registrar
                       livenessProbe:
                         timeoutSeconds: 5
+          - target:
+              kind: Deployment
+              name: democratic-csi-zfs-nfs-1-controller
+            patch: |
+              apiVersion: apps/v1
+              kind: Deployment
+              metadata:
+                name: democratic-csi-zfs-nfs-1-controller
+              spec:
+                template:
+                  spec:
+                    affinity:
+                      podAntiAffinity:
+                        preferredDuringSchedulingIgnoredDuringExecution:
+                          - weight: 100
+                            podAffinityTerm:
+                              topologyKey: kubernetes.io/hostname
+                              labelSelector:
+                                matchLabels:
+                                  app.kubernetes.io/name: democratic-csi
+                                  app.kubernetes.io/csi-role: controller
