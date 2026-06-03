@@ -1,8 +1,10 @@
 ---
-# PHASE 2: every 6 hours, run one poll cycle (process new photos since
-# last_timestamp, tag them, exit). Currently SUSPENDED — flip
-# `spec.suspend: false` and scale the Deployment to 0 replicas when
-# enrolment is good enough that you trust unattended runs.
+# PHASE 2 (active 2026-06-03): every 6 hours, run one poll cycle (process new
+# photos since last_timestamp, tag them, exit). Now UNSUSPENDED with the
+# Deployment scaled to 0 — enrolment is stable enough to trust unattended
+# runs. To go back to interactive enrolment, scale the Deployment to 1; this
+# CronJob can keep running (concurrencyPolicy: Forbid means a manual UI poll
+# and a cron firing won't both scan at once).
 #
 # "Run if you can, but it's not that important" semantics come from:
 #   1. priorityClassName: low-priority-preemptible
@@ -32,7 +34,7 @@ metadata:
 spec:
   schedule: "17 */6 * * *"       # every 6h at :17 (offset from common cron storms)
   timeZone: America/New_York
-  suspend: true                  # flip to false in Phase 2
+  suspend: false                 # Phase 2 active (2026-06-03)
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 600
   successfulJobsHistoryLimit: 3

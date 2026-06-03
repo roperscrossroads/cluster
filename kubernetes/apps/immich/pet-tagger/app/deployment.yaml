@@ -1,11 +1,13 @@
 ---
-# PHASE 1 (current): replicas=1. Runs the FastAPI UI + the built-in 5-minute
-# polling loop. Use this while enrolling pets, gathering refs, and adding
-# negatives — the UI is required for that work.
+# PHASE 2 (current, 2026-06-03): replicas=0. Enrolment is stable, so the UI +
+# built-in 5-minute polling loop are parked and the sibling CronJob (now
+# unsuspended) handles unattended tagging every 6h. Scale back to 1 briefly
+# when you want the interactive UI to enrol new pets, gather refs, or add
+# negatives — then return to 0.
 #
-# PHASE 2 (later): set replicas=0 once enrolment is stable and let the
-# sibling CronJob take over. The Deployment can stay at replicas=0 between
-# enrolment sessions; bring it back up briefly when you want to refine.
+# Rationale for parking it: this single replica held a persistent ~2 GiB on
+# talos-3 (the 12 GiB worker, already at ~91% memory requests) just to idle
+# between enrolment sessions. The CronJob does the same work on demand.
 #
 # Note: this Deployment does NOT use low-priority-preemptible. While the UI
 # is up it's interactive — you don't want it evicted mid-enrolment. The
@@ -18,7 +20,7 @@ metadata:
   labels:
     app.kubernetes.io/name: immich-pet-tagger
 spec:
-  replicas: 1
+  replicas: 0
   strategy:
     type: Recreate              # single RWX mount; no rolling updates
   selector:
