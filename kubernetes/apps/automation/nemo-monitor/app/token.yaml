@@ -1,0 +1,13 @@
+---
+# Long-lived ServiceAccount token Secret. Needed because the consumer is an
+# EXTERNAL client (the nemo-compute LXC) that cannot use projected/auto-rotated
+# in-cluster tokens. Kubernetes populates .data.token and .data.ca\.crt once the
+# SA exists; we read those to build the read-only kubeconfig (Task 5 Step 8).
+apiVersion: v1
+kind: Secret
+metadata:
+  name: nemo-monitor-reader-token
+  namespace: automation
+  annotations:
+    kubernetes.io/service-account.name: nemo-monitor-reader
+type: kubernetes.io/service-account-token

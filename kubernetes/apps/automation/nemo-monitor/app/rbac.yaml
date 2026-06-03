@@ -1,0 +1,36 @@
+---
+# Read-only ServiceAccount for the external NeMo k8s_infra_monitor agent
+# (Phase C M1). The agent runs OUTSIDE the cluster (on the nemo-compute LXC)
+# and consumes a long-lived token (see token.yaml) via a kubeconfig. The
+# ClusterRole is strictly get/list/watch — no create/update/patch/delete —
+# so the agent is structurally incapable of mutating the cluster.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nemo-monitor-reader
+  namespace: automation
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: nemo-monitor-reader
+rules:
+  - apiGroups: [""]
+    resources: [nodes, pods, pods/log, events, namespaces, resourcequotas]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["metrics.k8s.io"]
+    resources: [nodes, pods]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: nemo-monitor-reader
+subjects:
+  - kind: ServiceAccount
+    name: nemo-monitor-reader
+    namespace: automation
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: nemo-monitor-reader

@@ -1,0 +1,20 @@
+# Flux Kustomization wrapper for the read-only reader SA consumed by the
+# external NeMo k8s monitor agent (Phase C M1). Mirrors notes-verifier/ks.yaml.
+# No metadata.namespace: the parent automation/kustomization.yaml sets
+# `namespace: automation` at the kustomize top level. No dependsOn: this app is
+# pure RBAC + a token Secret with no runtime dependency on other apps.
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: nemo-monitor
+spec:
+  interval: 1h
+  path: ./kubernetes/apps/automation/nemo-monitor/app
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: automation
+  wait: false
