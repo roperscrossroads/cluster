@@ -13,17 +13,28 @@ spec:
       envoyDeployment:
         replicas: 2
         pod:
-          # Spread all envoy proxy pods (both gateways, all replicas) evenly
-          # across nodes. Without this the scheduler piled one replica of each
-          # gateway onto two nodes and skipped the third entirely (observed
-          # 2026-06-03: 2 on talos-1, 2 on talos-3, 0 on talos-2), loading
-          # ~2 GiB of gateway onto the already-tight control-plane node while
-          # an idle node carried none. maxSkew=1 + ScheduleAnyway prefers an
-          # even 2-1-1 placement but never blocks scheduling on a node loss.
+          # Force each gateway's two replicas onto different nodes for HA.
+          #
+          # The EnvoyProxy spec is shared by both Gateways, so a label
+          # selector necessarily matches all four proxy pods. matchLabelKeys:
+          # [pod-template-hash] narrows the spread domain to one ReplicaSet —
+          # i.e. per-gateway, per-revision — so the constraint behaves as
+          # "spread THIS gateway's replicas" and old/new revisions during a
+          # rollout are counted separately (no rollout deadlock).
+          #
+          # maxSkew=1 + DoNotSchedule on a 2-replica set across 3 nodes forces
+          # a 1-1 split. A soft (ScheduleAnyway) variant was tried first and
+          # the scheduler piled all four pods onto the emptiest node
+          # (2026-06-03: 4 on talos-2), collapsing each gateway to a single
+          # node — an ingress SPOF. Hard spread per-gateway is required to
+          # prevent that. Losing 2 of 3 nodes (which also breaks etcd quorum)
+          # would leave one replica Pending; acceptable at that point.
           topologySpreadConstraints:
             - maxSkew: 1
               topologyKey: kubernetes.io/hostname
-              whenUnsatisfiable: ScheduleAnyway
+              whenUnsatisfiable: DoNotSchedule
+              matchLabelKeys:
+                - pod-template-hash
               labelSelector:
                 matchLabels:
                   app.kubernetes.io/managed-by: envoy-gateway
