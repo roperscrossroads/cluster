@@ -43,6 +43,14 @@ spec:
           resources:
             requests:
               cpu: 100m
+              # envoy-gateway defaults the memory request to equal the limit
+              # (1Gi) when unset. Each proxy actually uses ~20-40Mi at our
+              # traffic, so an unset request reserved 1Gi/pod of phantom
+              # headroom — with one replica of each gateway per node for HA,
+              # that pinned the control-plane node at 97% memory requests on
+              # ~75Mi of real use. 256Mi is ~7x observed peak with the 1Gi
+              # limit still absorbing connection/config bursts.
+              memory: 256Mi
             limits:
               memory: 1Gi
       envoyService:
