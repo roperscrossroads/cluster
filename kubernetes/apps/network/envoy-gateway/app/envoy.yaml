@@ -12,6 +12,21 @@ spec:
     kubernetes:
       envoyDeployment:
         replicas: 2
+        pod:
+          # Spread all envoy proxy pods (both gateways, all replicas) evenly
+          # across nodes. Without this the scheduler piled one replica of each
+          # gateway onto two nodes and skipped the third entirely (observed
+          # 2026-06-03: 2 on talos-1, 2 on talos-3, 0 on talos-2), loading
+          # ~2 GiB of gateway onto the already-tight control-plane node while
+          # an idle node carried none. maxSkew=1 + ScheduleAnyway prefers an
+          # even 2-1-1 placement but never blocks scheduling on a node loss.
+          topologySpreadConstraints:
+            - maxSkew: 1
+              topologyKey: kubernetes.io/hostname
+              whenUnsatisfiable: ScheduleAnyway
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/managed-by: envoy-gateway
         container:
           imageRepository: mirror.gcr.io/envoyproxy/envoy
           resources:
