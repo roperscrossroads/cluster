@@ -60,12 +60,25 @@ spec:
     # kube-proxy job.
     kubeProxy:
       enabled: false
-    # On Talos, etcd runs co-located with the kube-apiserver pod on the
-    # control plane; the chart's default etcd selector finds no pods.
+    # Control-plane jobs we never look at and which carry heavy histogram
+    # cardinality. On Talos, controller-manager + scheduler bind to localhost
+    # and aren't scrapable anyway; etcd is co-located with the apiserver pod.
+    # Dropped to shed series. kube-state-metrics, node-exporter and kubelet
+    # stay enabled — the OOM/ZFS/Dockerhub alert rules depend on them.
     kubeEtcd:
-      service:
-        selector:
-          component: kube-apiserver
+      enabled: false
+    kubeControllerManager:
+      enabled: false
+    kubeScheduler:
+      enabled: false
+    # Keep the apiserver up/error signal but drop its highest-cardinality
+    # bucket histograms (the dominant series source in most clusters).
+    kubeApiServer:
+      serviceMonitor:
+        metricRelabelings:
+          - action: drop
+            sourceLabels: [__name__]
+            regex: apiserver_request_duration_seconds_bucket|apiserver_response_sizes_bucket|apiserver_watch_events_sizes_bucket|apiserver_request_sli_duration_seconds_bucket|apiserver_request_slo_duration_seconds_bucket
 
     alertmanager:
       route:
@@ -87,7 +100,9 @@ spec:
         storage:
           volumeClaimTemplate:
             spec:
-              storageClassName: zfs-nvmeof-1
+              # Node-local disk: Alertmanager state is tiny and disposable;
+              # no reason to round-trip it over NVMe-oF to a shared target.
+              storageClassName: local-path
               resources:
                 requests:
                   storage: 1Gi
@@ -109,6 +124,11 @@ spec:
               sectionName: https
       prometheusSpec:
         externalUrl: https://prometheus.ropxr.dev
+        # 60s (vs chart default 30s) halves sample volume → ~half the WAL
+        # writes and compaction I/O. Ample resolution for a homelab that's
+        # checked occasionally; slow-moving alerts (OOM, ZFS state) unaffected.
+        scrapeInterval: 60s
+        evaluationInterval: 60s
         # The four *SelectorNilUsesHelmValues:false flags make Prom pick up
         # ANY ServiceMonitor / PodMonitor / Probe / PrometheusRule /
         # ScrapeConfig in any namespace, without a label restriction. This
@@ -121,8 +141,11 @@ spec:
         ruleSelectorNilUsesHelmValues: true
         scrapeConfigSelectorNilUsesHelmValues: true
         serviceMonitorSelectorNilUsesHelmValues: true
-        retention: 21d
-        retentionSize: 40GB
+        retention: 7d
+        # Hard cap on TSDB size. On local-path this is the ONLY real guard —
+        # local-path enforces no quota, so retentionSize (not the PVC request)
+        # is what protects the node's ephemeral partition from filling.
+        retentionSize: 8GB
         resources:
           requests:
             cpu: 100m
@@ -132,10 +155,13 @@ spec:
         storageSpec:
           volumeClaimTemplate:
             spec:
-              storageClassName: zfs-nvmeof-1
+              # Node-local NVMe instead of NVMe-oF: Prometheus does large
+              # sequential TSDB I/O that thrashed the small shared target's
+              # ARC. Data is disposable (survives upgrades, not node resets).
+              storageClassName: local-path
               resources:
                 requests:
-                  storage: 40Gi
+                  storage: 10Gi
 
     # Custom rules from day 1 — convergent set across bjw-s + joryirving
     # homelab refs (OOM detection, ZFS pool state, Dockerhub rate limit).
