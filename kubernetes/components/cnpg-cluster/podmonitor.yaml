@@ -10,6 +10,7 @@ kind: PodMonitor
 metadata:
   name: PLACEHOLDER_APP_NAME          # replaced via kustomize
   labels:
+    release: kube-prometheus-stack
     cnpg.io/cluster: PLACEHOLDER_APP_NAME   # replaced via kustomize
 spec:
   selector:

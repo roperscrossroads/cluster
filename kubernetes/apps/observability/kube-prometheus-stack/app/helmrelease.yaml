@@ -55,10 +55,6 @@ spec:
       fullnameOverride: node-exporter
     kube-state-metrics:
       fullnameOverride: kube-state-metrics
-      metricLabelsAllowlist:
-        - pods=[*]
-        - deployments=[*]
-        - persistentvolumeclaims=[*]
 
     # Talos uses Cilium kube-proxy replacement — nothing to scrape on the
     # kube-proxy job.
@@ -118,11 +114,13 @@ spec:
         # ScrapeConfig in any namespace, without a label restriction. This
         # is the right default for a homelab where monitors will be added
         # ad-hoc next to the workloads they cover.
-        podMonitorSelectorNilUsesHelmValues: false
-        probeSelectorNilUsesHelmValues: false
-        ruleSelectorNilUsesHelmValues: false
-        scrapeConfigSelectorNilUsesHelmValues: false
-        serviceMonitorSelectorNilUsesHelmValues: false
+        # Tighten selection back to label-gated defaults (avoid scraping any
+        # PodMonitor/ServiceMonitor/etc. cluster-wide by default).
+        podMonitorSelectorNilUsesHelmValues: true
+        probeSelectorNilUsesHelmValues: true
+        ruleSelectorNilUsesHelmValues: true
+        scrapeConfigSelectorNilUsesHelmValues: true
+        serviceMonitorSelectorNilUsesHelmValues: true
         retention: 21d
         retentionSize: 40GB
         resources:
