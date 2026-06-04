@@ -7,7 +7,7 @@
 #
 # If you ever want this on the public envoy-external, you must put
 # Authelia forward-auth in front (see ~/notes/local/infra/services/oidc.md;
-# mind the home.arpa PSL caveat — ropxr.dev is fine).
+# mind the home.arpa PSL caveat — ${SECRET_DOMAIN} is fine).
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -19,7 +19,7 @@ spec:
       namespace: network
       sectionName: https
   hostnames:
-    - immich-pet-tagger.ropxr.dev
+    - immich-pet-tagger.${SECRET_DOMAIN}
   rules:
     - matches:
         - path:

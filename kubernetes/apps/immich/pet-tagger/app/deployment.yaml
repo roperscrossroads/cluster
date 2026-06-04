@@ -64,7 +64,7 @@ spec:
             - name: IMMICH_URL
               value: http://immich-server.immich.svc.cluster.local:2283
             - name: IMMICH_EXTERNAL_URL
-              value: https://immich.ropxr.dev
+              value: https://immich.${SECRET_DOMAIN}
             - name: POLL_INTERVAL
               value: "300"        # 5 min — matches upstream default during enrolment
             - name: GPU_WORKERS

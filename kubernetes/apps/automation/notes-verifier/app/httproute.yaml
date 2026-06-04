@@ -1,6 +1,6 @@
 # Internal-only HTTPRoute via envoy-internal. Public DNS A record points
 # at the RFC1918 LB IP — resolvable from the internet, unreachable from
-# it. Wildcard `*.ropxr.dev` cert at the Gateway covers TLS.
+# it. Wildcard `*.${SECRET_DOMAIN}` cert at the Gateway covers TLS.
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -13,7 +13,7 @@ spec:
       namespace: network
       sectionName: https
   hostnames:
-    - claims.ropxr.dev
+    - claims.${SECRET_DOMAIN}
   rules:
     - matches:
         - path:

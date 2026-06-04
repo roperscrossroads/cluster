@@ -85,7 +85,7 @@ spec:
         main:
           enabled: true
           hostnames:
-            - alertmanager.ropxr.dev
+            - alertmanager.${SECRET_DOMAIN}
           parentRefs:
             - name: envoy-internal
               namespace: network
@@ -96,7 +96,7 @@ spec:
         # tree + ntfy webhook receiver.
         alertmanagerConfiguration:
           name: alertmanager
-        externalUrl: https://alertmanager.ropxr.dev
+        externalUrl: https://alertmanager.${SECRET_DOMAIN}
         storage:
           volumeClaimTemplate:
             spec:
@@ -117,13 +117,13 @@ spec:
         main:
           enabled: true
           hostnames:
-            - prometheus.ropxr.dev
+            - prometheus.${SECRET_DOMAIN}
           parentRefs:
             - name: envoy-internal
               namespace: network
               sectionName: https
       prometheusSpec:
-        externalUrl: https://prometheus.ropxr.dev
+        externalUrl: https://prometheus.${SECRET_DOMAIN}
         # 60s (vs chart default 30s) halves sample volume → ~half the WAL
         # writes and compaction I/O. Ample resolution for a homelab that's
         # checked occasionally; slow-moving alerts (OOM, ZFS state) unaffected.
