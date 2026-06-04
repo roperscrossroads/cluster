@@ -159,6 +159,29 @@ spec:
             memory: 1Gi
           limits:
             memory: 2Gi
+        # local-path is a hostPath volume, and the operator mounts the data
+        # dir via subPath (prometheus-db). kubelet creates subPath dirs
+        # root:root 0755 and does NOT apply fsGroup to them on hostPath
+        # volumes — so non-root Prometheus (uid 1000) can't write and crashes
+        # with EACCES on queries.active. (Block CSI like NVMe-oF avoided this
+        # because ext4 volumes get fsGroup applied recursively.) This root
+        # initContainer fixes ownership before the main container starts.
+        initContainers:
+          - name: init-chown-data
+            image: public.ecr.aws/docker/library/busybox:1.37
+            command: ["sh", "-c", "chown -R 1000:2000 /prometheus"]
+            securityContext:
+              runAsNonRoot: false
+              runAsUser: 0
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop: ["ALL"]
+                add: ["CHOWN"]
+            volumeMounts:
+              - name: prometheus-kube-prometheus-stack-db
+                mountPath: /prometheus
+                subPath: prometheus-db
         storageSpec:
           volumeClaimTemplate:
             spec:
