@@ -129,6 +129,13 @@ spec:
         # checked occasionally; slow-moving alerts (OOM, ZFS state) unaffected.
         scrapeInterval: 60s
         evaluationInterval: 60s
+        # local-path pins the PVC to one node, so choose it deliberately:
+        # the least-loaded worker, and explicitly NOT the node whose storage
+        # layer has been unstable. (Prometheus crashed with EACCES writing to
+        # a local-path volume on that node despite 0777/permissive-SELinux;
+        # the same non-root pod runs fine here — see runbook follow-up.)
+        nodeSelector:
+          kubernetes.io/hostname: talos-3
         # The four *SelectorNilUsesHelmValues:false flags make Prom pick up
         # ANY ServiceMonitor / PodMonitor / Probe / PrometheusRule /
         # ScrapeConfig in any namespace, without a label restriction. This
