@@ -18,3 +18,4 @@ resources:
   - ./health-kuma/ks.yaml
   - ./health-cluster/ks.yaml
   - ./nemo-monitor/ks.yaml
+  - ./autoloop/ks.yaml
