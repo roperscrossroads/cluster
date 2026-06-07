@@ -190,6 +190,16 @@ spec:
       # maintains the `current` symlink pointing at the latest SHA.
       - name: DAGU_DAGS_DIR
         value: "/data/git/dagu-dags/current/dags"
+      # Pin the run/queue/proc dirs so the `dagu` CLI (invoked via kubectl exec)
+      # resolves the SAME paths as the daemon. Without these the CLI defaults to
+      # /data/data/* and writes a divergent tree the UI never reads — the source
+      # of stale "running" runs that survived restarts (see beads agents-j9d).
+      - name: DAGU_DAG_RUNS_DIR
+        value: "/data/dag-runs"
+      - name: DAGU_QUEUE_DIR
+        value: "/data/queue"
+      - name: DAGU_PROC_DIR
+        value: "/data/proc"
       # LiteLLM connection details for the Steward agent / `dagu agent`.
       # The agent UI stores its own copy of these inside model JSON files
       # once configured at /agent-settings — these env vars exist so you
