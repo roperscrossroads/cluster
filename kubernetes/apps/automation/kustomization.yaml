@@ -19,3 +19,4 @@ resources:
   - ./health-cluster/ks.yaml
   - ./nemo-monitor/ks.yaml
   - ./autoloop/ks.yaml
+  - ./hermes-peer/ks.yaml

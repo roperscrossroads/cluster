@@ -1,0 +1,52 @@
+# Hermes config for the serving mesh-peer Deployment (NOT the OpenShell sandbox).
+# Copied into the writable HERMES_HOME by an initContainer (the image's default
+# HERMES_HOME seed is sandbox-flavoured: inference.local). Here the agent reaches
+# the LLM via the LiteLLM proxy with a real vkey (OPENAI_API_KEY env), not the
+# sandbox's inference.local interception. See
+# ~/agents/docs/specs/2026-06-08-hermes-a2a-mesh-peer-design.md.
+model:
+  default: local              # LiteLLM `local` group (allowlist on the agno-hermes vkey)
+  provider: custom            # honours config base_url; key comes from OPENAI_API_KEY env
+  base_url: https://litellm.home.arpa/v1
+
+terminal:
+  backend: local
+  timeout: 60
+
+agent:
+  max_turns: 90
+  reasoning: medium
+  approval_mode: "off"        # unattended serving peer; no interactive approver
+
+memory:
+  enabled: true
+  path: /hermes-home/memories
+
+skills:
+  enabled: true
+  path: /hermes-home/skills
+  auto_create: false
+
+# Messaging platforms all off — we serve only the api_server (enabled by env
+# API_SERVER_KEY, consumed by the in-pod a2a-shim sidecar over loopback).
+gateway:
+  telegram:
+    enabled: false
+  discord:
+    enabled: false
+  slack:
+    enabled: false
+
+tools:
+  enabled: all
+
+sessions:
+  compression:
+    enabled: true
+    threshold: 0.75
+  search:
+    enabled: true
+
+display:
+  skin: minimal
+  status_bar: true

@@ -1,0 +1,28 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: automation
+resources:
+  - ./deployment.yaml
+  - ./httproute.yaml
+  # The Secret (API_SERVER_KEY + LITELLM_VKEY) is created out-of-band and
+  # SOPS-encrypted, then added here before the first reconcile — see README.md
+  # (it needs the minted agno-hermes LiteLLM vkey). Until then this app will not
+  # start; it is intentionally not referenced so `kustomize build` stays valid.
+  # - ./secrets/hermes-peer-secret.sops.yaml
+
+# Hermes config (Deployment-flavoured: LiteLLM base_url, not inference.local),
+# seeded into HERMES_HOME by the initContainer.
+configMapGenerator:
+  - name: hermes-config
+    files:
+      - config.yaml=config.yaml
+    options:
+      disableNameSuffixHash: true
+  # Internal CA bundle so hermes trusts litellm.home.arpa (same pattern as
+  # notes-verifier). Drop the cluster CA in internal-ca.crt at build time.
+  - name: internal-ca
+    files:
+      - ca.crt=internal-ca.crt
+    options:
+      disableNameSuffixHash: true

@@ -1,0 +1,21 @@
+---
+# Internal-only A2A endpoint for the hermes mesh peer. Same envoy-internal
+# pattern as dagu: the hostname resolves (via internal DNS) to the
+# envoy-internal LB (RFC1918, not internet-reachable). The Agno control plane
+# on the compute VLAN reaches the shim here over A2A (json-rpc). No Authelia in
+# front — this is a machine-to-machine A2A surface (A2A auth hardening is a
+# separate future bead, agents-c5s.1.7).
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: hermes-peer
+spec:
+  hostnames: ["hermes-peer-int.${SECRET_DOMAIN}"]
+  parentRefs:
+    - name: envoy-internal
+      namespace: network
+      sectionName: https
+  rules:
+    - backendRefs:
+        - name: hermes-peer
+          port: 9400

@@ -1,0 +1,23 @@
+---
+# Flux Kustomization for hermes-peer (the hermes A2A mesh peer).
+# Mirrors notes-verifier/ks.yaml. The parent automation kustomization sets
+# `namespace: automation`, so no metadata.namespace here. postBuild brings in
+# ${SECRET_DOMAIN} (used by the HTTPRoute) from cluster-secrets.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: hermes-peer
+spec:
+  interval: 1h
+  path: ./kubernetes/apps/automation/hermes-peer/app
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: automation
+  wait: false
+  postBuild:
+    substituteFrom:
+      - name: cluster-secrets
+        kind: Secret

@@ -1,0 +1,151 @@
+# hermes-peer — hermes as an A2A mesh peer (serving Deployment, not a sandbox).
+#
+# One pod, two containers sharing localhost:
+#   - hermes      : `hermes gateway` with the api_server platform on :8642
+#                   (enabled by API_SERVER_KEY); LLM via the LiteLLM proxy.
+#   - a2a-shim    : fronts hermes' /v1 as an A2A peer on :9400 (the Service port).
+# An initContainer seeds the writable HERMES_HOME from the Deployment-flavoured
+# ConfigMap (the image's baked config points at inference.local — wrong here).
+#
+# Design: ~/agents/docs/specs/2026-06-08-hermes-a2a-mesh-peer-design.md
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hermes-peer
+  namespace: automation
+spec:
+  selector:
+    app.kubernetes.io/name: hermes-peer
+  ports:
+    - name: a2a
+      port: 9400
+      targetPort: a2a
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hermes-peer
+  namespace: automation
+  labels:
+    app.kubernetes.io/name: hermes-peer
+    app.kubernetes.io/part-of: hermes-peer
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate          # single in-flight; avoid two pods racing on HERMES_HOME
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: hermes-peer
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: hermes-peer
+    spec:
+      imagePullSecrets:
+        - name: internal-registry-auth
+      securityContext:
+        runAsNonRoot: false   # hermes image runs as root today; TODO harden (see README)
+      initContainers:
+        # Seed the Deployment-flavoured hermes config into the writable HERMES_HOME.
+        - name: seed-config
+          image: registry.home.arpa:8080/hermes-sandbox:0.1.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - 'cp /config/config.yaml /hermes-home/config.yaml'
+          volumeMounts:
+            - name: hermes-home
+              mountPath: /hermes-home
+            - name: hermes-config
+              mountPath: /config
+      containers:
+        # ---- hermes gateway (api_server on :8642, loopback-only) ----
+        - name: hermes
+          image: registry.home.arpa:8080/hermes-sandbox:0.1.0
+          imagePullPolicy: IfNotPresent
+          command: ["hermes", "gateway"]
+          env:
+            - name: HERMES_HOME
+              value: /hermes-home
+            - name: API_SERVER_HOST
+              value: "127.0.0.1"        # loopback only; the shim sidecar reaches it
+            - name: API_SERVER_PORT
+              value: "8642"
+            - name: API_SERVER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-peer
+                  key: API_SERVER_KEY
+            - name: OPENAI_BASE_URL
+              value: https://litellm.home.arpa/v1
+            - name: OPENAI_API_KEY      # the agno-hermes LiteLLM vkey (allowlist local)
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-peer
+                  key: LITELLM_VKEY
+            # Trust the internal CA for litellm.home.arpa (httpx/openai honour these).
+            - name: SSL_CERT_FILE
+              value: /etc/ssl/internal/ca.crt
+            - name: REQUESTS_CA_BUNDLE
+              value: /etc/ssl/internal/ca.crt
+          volumeMounts:
+            - name: hermes-home
+              mountPath: /hermes-home
+            - name: internal-ca
+              mountPath: /etc/ssl/internal
+              readOnly: true
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "512Mi"
+            limits:
+              memory: "2Gi"
+        # ---- a2a-shim sidecar (A2A peer surface on :9400) ----
+        - name: a2a-shim
+          image: registry.home.arpa:8080/a2a-shim:v0.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9400
+              name: a2a
+          env:
+            - name: A2A_SHIM_BACKEND
+              value: hermes
+            - name: A2A_SHIM_NAME
+              value: hermes-a
+            - name: A2A_SHIM_DESC
+              value: "Hermes agent (local model) as an A2A peer"
+            - name: A2A_SHIM_HOST
+              value: "0.0.0.0"
+            - name: A2A_SHIM_PORT
+              value: "9400"
+            - name: A2A_SHIM_PUBLIC_URL
+              value: "http://hermes-peer.home.arpa/"
+            - name: HERMES_API_BASE
+              value: http://localhost:8642/v1
+            - name: HERMES_MODEL
+              value: hermes-agent
+            - name: HERMES_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-peer
+                  key: API_SERVER_KEY
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              memory: "256Mi"
+      volumes:
+        - name: hermes-home
+          emptyDir: {}
+        - name: hermes-config
+          configMap:
+            name: hermes-config
+        - name: internal-ca
+          configMap:
+            name: internal-ca
+            items:
+              - key: ca.crt
+                path: ca.crt
