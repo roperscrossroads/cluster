@@ -48,6 +48,15 @@ spec:
       imagePullSecrets:
         - name: internal-registry-auth
       automountServiceAccountToken: false   # no kube API creds in the pod
+      # ndots:1 so external names are queried bare. With the default ndots:5
+      # the resolver prepends the cluster search domains, Cilium's DNS proxy
+      # records "github.com.<ns>.svc.cluster.local" query names that match no
+      # toFQDNs pattern, and the CNP silently drops every GitHub connection.
+      # This pod talks to zero cluster services, so nothing is lost.
+      dnsConfig:
+        options:
+          - name: ndots
+            value: "1"
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001
