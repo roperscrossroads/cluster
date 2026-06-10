@@ -104,7 +104,7 @@ spec:
               memory: "2Gi"
         # ---- a2a-shim sidecar (A2A peer surface on :9400) ----
         - name: a2a-shim
-          image: registry.home.arpa:8080/a2a-shim:v0.1.0
+          image: registry.home.arpa:8080/a2a-shim:v0.2.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 9400
@@ -131,6 +131,13 @@ spec:
                 secretKeyRef:
                   name: hermes-peer
                   key: API_SERVER_KEY
+            # A2A bus auth (agents-c5s.1.7): require this bearer on message/send;
+            # the agent card stays public. Same value the agno consumer presents.
+            - name: A2A_SHIM_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-peer
+                  key: A2A_SHIM_AUTH_TOKEN
           resources:
             requests:
               cpu: "50m"
