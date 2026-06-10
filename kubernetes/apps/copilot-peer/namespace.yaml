@@ -1,0 +1,16 @@
+---
+# Isolated namespace for the Copilot CLI A2A peer (Tier-C posture: GitHub-only
+# egress, no estate credentials, denied destructive tools — see
+# ~/agents/docs/specs/2026-06-09-copilot-a2a-peer-design.md). The pod is fully
+# hardened (non-root, seccomp, no caps), so enforce the restricted PSS profile.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: copilot-peer
+  annotations:
+    kustomize.toolkit.fluxcd.io/prune: disabled
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

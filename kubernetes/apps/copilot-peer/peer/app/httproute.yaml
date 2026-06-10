@@ -1,0 +1,20 @@
+---
+# Internal-only A2A endpoint for the copilot peer. Same envoy-internal pattern
+# as hermes-peer: the hostname resolves (via internal DNS + the Caddy .lab
+# bridge) to the envoy-internal LB. The Agno control plane on the compute VLAN
+# reaches the shim here over A2A (json-rpc). Bus auth lands with the two-sided
+# c5s.1.7 rollout.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: copilot-peer
+spec:
+  hostnames: ["copilot-peer-int.${SECRET_DOMAIN}"]
+  parentRefs:
+    - name: envoy-internal
+      namespace: network
+      sectionName: https
+  rules:
+    - backendRefs:
+        - name: copilot-peer
+          port: 9400

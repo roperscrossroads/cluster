@@ -1,0 +1,22 @@
+---
+# Flux Kustomization for the copilot-peer A2A shim. Mirrors hermes-peer/ks.yaml.
+# postBuild brings in ${SECRET_DOMAIN} (used by the HTTPRoute) from
+# cluster-secrets.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: copilot-peer
+spec:
+  interval: 1h
+  path: ./kubernetes/apps/copilot-peer/peer/app
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: copilot-peer
+  wait: false
+  postBuild:
+    substituteFrom:
+      - name: cluster-secrets
+        kind: Secret

@@ -1,0 +1,122 @@
+# copilot-peer — GitHub Copilot CLI as a bounded A2A mesh peer.
+#
+# ONE container (unlike hermes' two): the a2a-shim execs the `copilot` CLI as a
+# subprocess, so shim + CLI must share a filesystem. The shim serves the A2A
+# surface on :9400 (agent id copilot-a); each message/send shells out to
+# `copilot -p ...` with a structurally bounded argv (deny shell/write tools,
+# --max-autopilot-continues 4) baked into the adapter — see
+# ~/agents/a2a-shim/README.md "Bounding the Copilot peer".
+#
+# Models are GitHub-hosted (Copilot subscription), NOT LiteLLM — the only
+# credential in this namespace is a fine-grained PAT scoped to public-repo
+# read + Copilot Requests. Egress is GitHub-only (see cnp.yaml).
+#
+# Design: ~/agents/docs/specs/2026-06-09-copilot-a2a-peer-design.md
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: copilot-peer
+  namespace: copilot-peer
+spec:
+  selector:
+    app.kubernetes.io/name: copilot-peer
+  ports:
+    - name: a2a
+      port: 9400
+      targetPort: a2a
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: copilot-peer
+  namespace: copilot-peer
+  labels:
+    app.kubernetes.io/name: copilot-peer
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate          # single in-flight delegation; no need for surge
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: copilot-peer
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: copilot-peer
+    spec:
+      imagePullSecrets:
+        - name: internal-registry-auth
+      automountServiceAccountToken: false   # no kube API creds in the pod
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: copilot-peer
+          image: registry.home.arpa:8080/copilot-peer:v0.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9400
+              name: a2a
+          env:
+            - name: A2A_SHIM_BACKEND
+              value: copilot
+            - name: A2A_SHIM_NAME
+              value: copilot-a
+            - name: A2A_SHIM_DESC
+              value: "GitHub Copilot CLI (bounded, GitHub-hosted models) as an A2A peer"
+            - name: A2A_SHIM_HOST
+              value: "0.0.0.0"
+            - name: A2A_SHIM_PORT
+              value: "9400"
+            - name: A2A_SHIM_PUBLIC_URL
+              value: "https://copilot-peer.lab.${SECRET_DOMAIN}/"
+            - name: COPILOT_TIMEOUT_S
+              value: "180"
+            # NOTE: A2A_SHIM_AUTH_TOKEN is staged in the secret but NOT enabled
+            # here yet — bus auth flips on two-sided with the agno consumer in
+            # the c5s.1.7 rollout (same staging pattern as hermes-peer).
+            - name: COPILOT_GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: copilot-peer
+                  key: COPILOT_GITHUB_TOKEN
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            # Copilot persists session state under $HOME/.copilot; shell+write
+            # tools are denied so an emptyDir wipes any residue on restart and
+            # nothing leaks between requests via the image layers.
+            - name: home
+              mountPath: /home/peer
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 1Gi     # node process; cap so a stuck CLI can't starve the node
+          readinessProbe:
+            httpGet:
+              path: /.well-known/agent-card.json
+              port: a2a
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /.well-known/agent-card.json
+              port: a2a
+            initialDelaySeconds: 10
+            periodSeconds: 30
+      volumes:
+        - name: home
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}

@@ -1,0 +1,57 @@
+---
+# Tier-C network boundary for the copilot peer: the pod may talk to GitHub and
+# NOTHING else. A foothold here can burn Copilot quota and read public repos
+# (all the PAT allows) but cannot reach any estate host, cluster service, or
+# RFC1918 address. Ingress is the envoy-internal gateway only.
+#
+# toFQDNs requires Cilium's DNS proxy: the kube-dns egress rule below carries a
+# dns matchPattern so Cilium observes resolutions and populates the FQDN
+# identity cache. Host list per GitHub's Copilot connectivity docs: github.com
+# (auth/API), api.github.com, *.githubusercontent.com (content),
+# *.githubcopilot.com (model/agent traffic — the spec's original list missed
+# this one; the CLI dies on first model call without it).
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: copilot-peer
+  namespace: copilot-peer
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: copilot-peer
+  egress:
+    # DNS via kube-dns only, with visibility for the FQDN rules below.
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+          rules:
+            dns:
+              - matchPattern: "*"
+    # GitHub, and only GitHub, on 443.
+    - toFQDNs:
+        - matchName: github.com
+        - matchName: api.github.com
+        - matchPattern: "*.github.com"
+        - matchPattern: "*.githubusercontent.com"
+        - matchPattern: "*.githubcopilot.com"
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+  ingress:
+    # A2A surface reachable only from the envoy-internal gateway pods.
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: network
+            gateway.envoyproxy.io/owning-gateway-name: envoy-internal
+      toPorts:
+        - ports:
+            - port: "9400"
+              protocol: TCP
