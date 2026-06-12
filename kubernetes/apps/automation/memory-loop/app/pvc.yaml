@@ -1,0 +1,12 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: memory-loop-corpus
+  namespace: automation
+spec:
+  accessModes: [ReadWriteMany]
+  storageClassName: zfs-nfs-1
+  resources:
+    requests:
+      storage: 5Gi

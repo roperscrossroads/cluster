@@ -20,3 +20,4 @@ resources:
   - ./nemo-monitor/ks.yaml
   - ./autoloop/ks.yaml
   - ./hermes-peer/ks.yaml
+  - ./memory-loop/ks.yaml
