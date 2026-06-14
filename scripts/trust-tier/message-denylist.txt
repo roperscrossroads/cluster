@@ -22,3 +22,6 @@
 \b[a-z0-9-]+-(compute|manage|mesh)\b
 \bregistry-home-arpa-auth\b
 \bhome-arpa\b
+# Real estate domain — masked as ${SECRET_DOMAIN} in the repo; keep it out of
+# commit messages too (use generic phrasing or the variable name).
+\bropxr\.dev\b

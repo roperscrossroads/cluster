@@ -15,6 +15,11 @@
 # nothing in the mini-cluster repo should reference it.
 \b172\.16\.8[0-9]\.[0-9]{1,3}\b
 
+# The real estate domain must be templated as ${SECRET_DOMAIN}, never hardcoded
+# (the repo masks it from the public mirror). Use lab.${SECRET_DOMAIN} for
+# internal hostnames; a bare literal here is a convention break.
+\bropxr\.dev\b
+
 # Add genuinely-external sensitive literals below as they come up, e.g.:
 #   - real public/WAN IPs of estate edges
 #   - third-party real domains that shouldn't be associated with this repo

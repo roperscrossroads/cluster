@@ -35,14 +35,20 @@ guard therefore protects only three things:
 
 These appear in manifests by necessity and are explicitly fine in file content:
 
-- `*.home.arpa`, `*.lab.ropxr.dev` (internal DNS; the latter is the migration
-  target — real LE TLS, home-network-only)
+- `*.home.arpa` (internal DNS, the legacy TLD)
 - the cluster's own RFC-1918 ranges: `172.16.20.0/24`, `172.16.21.0/24`
 - public registries/domains: `ghcr.io`, `registry.k8s.io`, `public.ecr.aws`,
   `docker.io`, `quay.io`, etc.
 
-If a new internal identifier class starts appearing in content, add it to this
-list (documentation), **not** to a denylist.
+**The estate domain is the exception — it is NOT accepted bare.** The repo masks
+it as `${SECRET_DOMAIN}` (Flux `postBuild` substitution from `cluster-secrets`).
+Internal `.lab` hostnames must be written `lab.${SECRET_DOMAIN}`, never the
+literal domain — a bare occurrence is denied (content + message denylists) so the
+masking convention can't silently erode. The migration target off `home.arpa` is
+`lab.${SECRET_DOMAIN}` (real LE wildcard TLS, home-network-only).
+
+If a new *internal* identifier class starts appearing in content, add it to this
+accepted list (documentation), **not** to a denylist.
 
 ## Files
 
