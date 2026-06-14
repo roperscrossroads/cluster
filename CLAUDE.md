@@ -9,31 +9,37 @@
 <!-- BEGIN apps-tree (keep in sync with kubernetes/apps/; tier-1 generator target) -->
 ```
 kubernetes/apps/
-├── actions/          # arc-controller (in arc-systems ns), arc-runner-sets
-│                     # (cluster, meshsense — runners spawn in arc-runners
-│                     # ns), forgejo-runner (raw Deployment + KEDA SO)
-├── automation/       # dagu workflow engine (internal HTTPRoute, builtin
-│                     # auth, RWX on zfs-nfs; DAGs git-synced from
-│                     # dev/dagu-dags) + notes-rag, hermes/copilot peers,
-│                     # memory-loop
-├── cert-manager/     # ACME issuer (Cloudflare DNS-01)
-├── cnpg-system/      # CloudNativePG operator + CRDs (Postgres; shared
-│                     # cluster pattern in components/cnpg-cluster)
-├── copilot-peer/     # bounded Copilot CLI as an A2A mesh peer (custom image)
-├── default/          # echo (smoke test target)
-├── flux-system/      # flux-operator + flux-instance (self-managing)
-├── immich/           # self-hosted photo library + pet-tagger ML sidecar
-├── inference/        # ollama (in-cluster CPU inference)
-├── keda-system/      # KEDA 2.19.0 via classic HelmRepository (NOT OCI;
-│                     # ghcr.io anonymous DENIED on kedacore org)
-├── kube-system/      # cilium, coredns, metrics-server, reloader, spegel
-├── network/          # cloudflare-dns (external-dns), cloudflare-tunnel,
-│                     # envoy-gateway (internal + external), k8s-gateway
-├── observability/    # kube-prometheus-stack (+CRDs), grafana + operator
-├── openshell/        # agent-sandbox controller + sandboxes, gateway,
-│                     # litellm-route, secret-sync
-└── storage-system/   # 4× democratic-csi (zfs-{nfs,nvmeof}-{1,2}) +
-                      # local-path-provisioner. zfs-nvmeof-1 is default.
+├── actions/         # arc-controller, arc-runner-set-rxr-cluster,
+│                    #   arc-runner-set-rxr-meshsense, forgejo-runner — runners
+│                    #   spawn in arc-runners ns; ARC controller in arc-systems
+├── automation/      # autoloop, dagu, health-cluster, health-kuma,
+│                    #   health-smart, health-zfs, hermes-peer, memory-loop,
+│                    #   nemo-monitor, notes-rag, notes-verifier,
+│                    #   ops-data-credentials, researcher — DAGs git-synced
+│                    #   from dev/dagu-dags; cluster's workflow engine
+├── cert-manager/    # cert-manager
+├── cnpg-system/     # operator, operator-crds
+├── copilot-peer/    # peer
+├── default/         # echo — smoke-test target
+├── flux-system/     # flux-instance, flux-operator
+├── immich/          # app, pet-tagger
+├── inference/       # ollama
+├── keda-system/     # keda — classic HelmRepository, NOT OCI (ghcr anon
+│                    #   denied on kedacore)
+├── kube-system/     # cilium, coredns, metrics-server, reloader, spegel —
+│                    #   coredns forwards home.arpa; spegel = registry mirror
+├── network/         # cloudflare-dns, cloudflare-tunnel, envoy-gateway,
+│                    #   k8s-gateway — envoy-gateway is internal+external;
+│                    #   cloudflare-dns = external-dns
+├── observability/   # grafana, grafana-operator, kube-prometheus-stack,
+│                    #   kube-prometheus-stack-crds
+├── openshell/       # agent-sandbox, gateway, litellm-route, sandboxes,
+│                    #   secret-sync
+└── storage-system/  # democratic-csi-zfs-nfs-1, democratic-csi-zfs-nfs-2,
+                     #   democratic-csi-zfs-nvmeof-1,
+                     #   democratic-csi-zfs-nvmeof-2, external-snapshotter,
+                     #   external-snapshotter-crds, local-path-provisioner —
+                     #   zfs-nvmeof-1 is the default StorageClass
 ```
 <!-- END apps-tree -->
 

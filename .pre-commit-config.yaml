@@ -35,3 +35,14 @@ repos:
         # Skip SOPS-encrypted YAML (gitleaks already handles it; the binary
         # ENC[...] payloads can confuse the YAML parser on some inputs).
         exclude: '(^|/)(.*\.sops\.ya?ml|talos/clusterconfig/.*\.yaml)$'
+
+  # Tier-1 generators: derive facts from the filesystem at commit time so docs
+  # can't drift. The hook regenerates and re-stages; CI re-runs with --check.
+  - repo: local
+    hooks:
+      - id: apps-tree
+        name: regenerate CLAUDE.md apps-tree from kubernetes/apps/
+        entry: python3 scripts/generate-apps-tree.py
+        language: system
+        pass_filenames: false
+        files: '^(kubernetes/apps/.*/ks\.yaml|scripts/generate-apps-tree\.py|CLAUDE\.md)$'
