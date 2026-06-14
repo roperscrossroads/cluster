@@ -38,16 +38,16 @@ spec:
             parameters: "30"
           - name: forward
             parameters: . 172.16.20.40
-      # Internal `lab.ropxr.dev` services (litellm, engram, forge, git, …) are
-      # the migration target off `home.arpa`: a real LE wildcard cert + a
-      # split-horizon zone in OPNsense Unbound that returns RFC-1918 → Caddy
-      # (public has no A record = home-network-only). The zone is served by
-      # Unbound on every VLAN gateway, so forward to the cluster's own
-      # same-VLAN gateway 172.16.21.1 (dnsdhcp/dnsmasq does NOT serve this
-      # zone). Lets pods reach litellm.lab.ropxr.dev etc. with verifiable TLS
-      # and no internal-CA-trust mounts.
+      # Internal `lab.${SECRET_DOMAIN}` services (LLM proxy, memory store, forge,
+      # git, …) are the migration target off `home.arpa`: a real LE wildcard cert
+      # + a split-horizon zone in the firewall's resolver that returns RFC-1918 →
+      # reverse proxy (public has no A record = home-network-only). That zone is
+      # served by the resolver on every VLAN gateway, so forward to the cluster's
+      # own same-VLAN gateway 172.16.21.1 (the dnsmasq host serving home.arpa does
+      # NOT answer this zone). Lets pods reach lab.${SECRET_DOMAIN} services with
+      # verifiable TLS and no internal-CA-trust mounts.
       - zones:
-          - zone: lab.ropxr.dev
+          - zone: lab.${SECRET_DOMAIN}
             scheme: dns://
             use_tcp: true
         port: 53
