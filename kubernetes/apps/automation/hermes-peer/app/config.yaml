@@ -7,7 +7,7 @@
 model:
   default: local              # LiteLLM `local` group (allowlist on the agno-hermes vkey)
   provider: custom            # honours config base_url; key comes from OPENAI_API_KEY env
-  base_url: https://litellm.home.arpa/v1
+  base_url: https://litellm.lab.${SECRET_DOMAIN}/v1   # real LE cert; no internal-CA trust needed
 
 terminal:
   backend: local

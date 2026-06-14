@@ -79,23 +79,17 @@ spec:
                   name: hermes-peer
                   key: API_SERVER_KEY
             - name: OPENAI_BASE_URL
-              value: https://litellm.home.arpa/v1
+              value: https://litellm.lab.${SECRET_DOMAIN}/v1
             - name: OPENAI_API_KEY      # the agno-hermes LiteLLM vkey (allowlist local)
               valueFrom:
                 secretKeyRef:
                   name: hermes-peer
                   key: LITELLM_VKEY
-            # Trust the internal CA for litellm.home.arpa (httpx/openai honour these).
-            - name: SSL_CERT_FILE
-              value: /etc/ssl/internal/ca.crt
-            - name: REQUESTS_CA_BUNDLE
-              value: /etc/ssl/internal/ca.crt
+            # litellm.lab.${SECRET_DOMAIN} presents a real LE cert, trusted by
+            # the image's system CA bundle — no internal-CA mount needed.
           volumeMounts:
             - name: hermes-home
               mountPath: /hermes-home
-            - name: internal-ca
-              mountPath: /etc/ssl/internal
-              readOnly: true
           resources:
             requests:
               cpu: "100m"
@@ -150,9 +144,3 @@ spec:
         - name: hermes-config
           configMap:
             name: hermes-config
-        - name: internal-ca
-          configMap:
-            name: internal-ca
-            items:
-              - key: ca.crt
-                path: ca.crt

@@ -15,10 +15,3 @@ configMapGenerator:
       - config.yaml=config.yaml
     options:
       disableNameSuffixHash: true
-  # Internal CA bundle so hermes trusts litellm.home.arpa (same pattern as
-  # notes-verifier). Drop the cluster CA in internal-ca.crt at build time.
-  - name: internal-ca
-    files:
-      - ca.crt=internal-ca.crt
-    options:
-      disableNameSuffixHash: true
