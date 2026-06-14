@@ -19,8 +19,10 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 APPS = os.path.join(ROOT, "kubernetes", "apps")
 CLAUDE = os.path.join(ROOT, "CLAUDE.md")
-MARK_START = "<!-- BEGIN apps-tree"   # full line also carries a note; match prefix
-MARK_END = "<!-- END apps-tree -->"
+# Estate-wide convention (matches ~/lab/scripts/generate.py) so one splice()
+# implementation could fill marker blocks in any repo.
+MARK_START = "<!-- generated:apps-tree start -->"
+MARK_END = "<!-- generated:apps-tree end -->"
 
 # Hand-authored nuance — the only non-derived input. ADD-ONLY: state what the app
 # names don't already say (gotchas, defaults, wiring). Never restate the apps.
@@ -88,11 +90,9 @@ def render(tree):
 def splice(text, block):
     if MARK_START not in text or MARK_END not in text:
         raise SystemExit(f"apps-tree sentinels not found in {CLAUDE}")
-    head, rest = text.split(MARK_START, 1)
-    start_line_end = rest.index("\n")          # keep the full BEGIN marker line as-is
-    begin_line = MARK_START + rest[:start_line_end]
-    tail = text.split(MARK_END, 1)[1]
-    return f"{head}{begin_line}\n{block}{MARK_END}{tail}"
+    head = text.split(MARK_START)[0]
+    tail = text.split(MARK_END)[1]
+    return f"{head}{MARK_START}\n{block}{MARK_END}{tail}"
 
 
 def main():

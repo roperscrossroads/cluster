@@ -6,7 +6,7 @@
 
 ## What this repo deploys
 
-<!-- BEGIN apps-tree (keep in sync with kubernetes/apps/; tier-1 generator target) -->
+<!-- generated:apps-tree start -->
 ```
 kubernetes/apps/
 ├── actions/         # arc-controller, arc-runner-set-rxr-cluster,
@@ -41,7 +41,7 @@ kubernetes/apps/
                      #   external-snapshotter-crds, local-path-provisioner —
                      #   zfs-nvmeof-1 is the default StorageClass
 ```
-<!-- END apps-tree -->
+<!-- generated:apps-tree end -->
 
 ## Operational truth
 

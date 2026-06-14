@@ -16,11 +16,9 @@
 \b172\.16\.[0-9]{1,3}\.[0-9]{1,3}\b
 \b192\.168\.[0-9]{1,3}\.[0-9]{1,3}\b
 \b10\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\b
-\bclaudebot-compute\b
-\blitellm-compute\b
-\bopenwebui-compute\b
-\bchat-compute\b
-\baffine-compute\b
-\bdnsdhcp-compute\b
+# Host naming convention: <service>-(compute|manage|mesh). One pattern blocks
+# every current + future such host AND avoids enumerating specific internal
+# service names in this public-mirror file.
+\b[a-z0-9-]+-(compute|manage|mesh)\b
 \bregistry-home-arpa-auth\b
 \bhome-arpa\b

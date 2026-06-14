@@ -25,8 +25,9 @@ for pat in "${forbidden[@]}"; do
   pattern: ${pat}
 
   Rule: don't put hostnames / IPs / internal DNS names in commit
-  subjects or bodies. They live in (encrypted) config or
-  ~/notes/local/infra/hosts.md, not in git history.
+  subjects or bodies. They live in (encrypted) config or the
+  Backstage catalog (backstage.lab.ropxr.dev /
+  git.lab.ropxr.dev/dev/homelab-catalog), not in git history.
 
   See:  ~/.claude/CLAUDE.md (top-level rule + anti-examples)
         ~/notes/CLAUDE.md
