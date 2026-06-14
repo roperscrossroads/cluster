@@ -1,0 +1,26 @@
+# Internal infrastructure identifiers forbidden in COMMIT MESSAGES.
+# One extended-regex (grep -E) per line; blank lines and #-comments ignored.
+#
+# Rationale: ~/cluster mirrors to a PUBLIC GitHub repo; commit history is
+# world-readable. Identifiers belong in (encrypted) config or the Backstage
+# catalog, not in commit subjects/bodies. This is the SINGLE SOURCE OF TRUTH —
+# both the commit-msg hook and scripts/trust-tier/scan.sh load it.
+#
+# NOTE: this guards MESSAGES only. Per the 2026-06-14 operator decision, the
+# same identifiers are ACCEPTED in tracked file *content* (non-routable,
+# secretless, already in the mirror). Content is guarded by content-denylist.txt
+# (genuinely-external leaks) + gitleaks (secrets), not by this list.
+
+\b[a-z0-9-]+\.home\.arpa\b
+\bhome\.arpa\b
+\b172\.16\.[0-9]{1,3}\.[0-9]{1,3}\b
+\b192\.168\.[0-9]{1,3}\.[0-9]{1,3}\b
+\b10\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\b
+\bclaudebot-compute\b
+\blitellm-compute\b
+\bopenwebui-compute\b
+\bchat-compute\b
+\baffine-compute\b
+\bdnsdhcp-compute\b
+\bregistry-home-arpa-auth\b
+\bhome-arpa\b

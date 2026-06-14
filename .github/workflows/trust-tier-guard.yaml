@@ -1,0 +1,54 @@
+---
+# Backstop for the local pre-push hook (scripts/git-hooks/pre-push): re-runs the
+# same trust-tier guard on the PUBLIC mirror so a skipped/uninstalled local hook
+# can't leak secrets, internal identifiers in commit messages, or external
+# identifiers in content. Logic is shared via scripts/trust-tier/scan.sh.
+#
+# github-hosted on purpose (NOT the self-hosted cluster runner) — a pure text
+# scan with no cluster dependency, so it still runs when the cluster is down.
+name: "Trust-Tier Guard"
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: Trust-Tier Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history for range scan)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Install gitleaks
+        env:
+          GITLEAKS_VERSION: "8.30.1" # keep in sync with .mise.toml / .pre-commit-config.yaml
+        run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C /usr/local/bin gitleaks
+          gitleaks version
+
+      - name: Run trust-tier guard over the pushed range
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          zero='0000000000000000000000000000000000000000'
+          if [ -z "${BEFORE:-}" ] || [ "${BEFORE}" = "${zero}" ]; then
+            echo "No usable 'before' SHA (new branch / first push) — scanning whole tree."
+            bash scripts/trust-tier/scan.sh
+          else
+            echo "Scanning range ${BEFORE}..${AFTER}"
+            bash scripts/trust-tier/scan.sh "${BEFORE}..${AFTER}"
+          fi
