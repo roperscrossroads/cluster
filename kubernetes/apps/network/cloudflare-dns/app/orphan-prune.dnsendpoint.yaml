@@ -1,0 +1,51 @@
+---
+# TRANSIENT — adopt-then-prune of legacy orphan public DNS records.
+#
+# grafana / prometheus / alertmanager / claims each had a public A record →
+# the envoy-INTERNAL LB (172.16.21.101), created out-of-band during the
+# 2026-05-18 migration (same vintage as the litellm one). They are
+# internal-only services (envoy-internal HTTPRoutes), so they must be
+# home-only — no public record. But external-dns (--policy=sync, txt registry)
+# refuses to delete records it does not OWN, and these have no `k8s.` ownership
+# TXT, so it leaves them as orphans.
+#
+# Reconcile, GitOps-clean, in two pushes:
+#   1. (this commit) declare them so external-dns ADOPTS them — it writes the
+#      `k8s.a-<name>` ownership TXT. The A values are unchanged (no blip).
+#   2. delete this file — now external-dns owns them with no source, so
+#      --policy=sync PRUNES the A records + the TXT. Then DELETE THIS FILE for good.
+#
+# Do not keep this around: leaving it would re-assert the public records.
+apiVersion: externaldns.k8s.io/v1alpha1
+kind: DNSEndpoint
+metadata:
+  name: orphan-prune
+  namespace: network
+  annotations:
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "false"
+spec:
+  endpoints:
+    - dnsName: "grafana.${SECRET_DOMAIN}"
+      recordType: A
+      targets: ["172.16.21.101"]
+      providerSpecific:
+        - name: external-dns.alpha.kubernetes.io/cloudflare-proxied
+          value: "false"
+    - dnsName: "prometheus.${SECRET_DOMAIN}"
+      recordType: A
+      targets: ["172.16.21.101"]
+      providerSpecific:
+        - name: external-dns.alpha.kubernetes.io/cloudflare-proxied
+          value: "false"
+    - dnsName: "alertmanager.${SECRET_DOMAIN}"
+      recordType: A
+      targets: ["172.16.21.101"]
+      providerSpecific:
+        - name: external-dns.alpha.kubernetes.io/cloudflare-proxied
+          value: "false"
+    - dnsName: "claims.${SECRET_DOMAIN}"
+      recordType: A
+      targets: ["172.16.21.101"]
+      providerSpecific:
+        - name: external-dns.alpha.kubernetes.io/cloudflare-proxied
+          value: "false"

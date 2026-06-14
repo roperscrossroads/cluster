@@ -5,3 +5,6 @@ resources:
   - ./secret.sops.yaml
   - ./helmrelease.yaml
   - ./ocirepository.yaml
+  # TRANSIENT: adopt-then-prune of 4 legacy orphan records. Remove in the
+  # follow-up commit once external-dns has written the ownership TXT.
+  - ./orphan-prune.dnsendpoint.yaml
