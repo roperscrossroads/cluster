@@ -41,8 +41,8 @@ repos:
   - repo: local
     hooks:
       - id: apps-tree
-        name: regenerate CLAUDE.md apps-tree from kubernetes/apps/
+        name: regenerate AGENTS.md apps-tree from kubernetes/apps/
         entry: python3 scripts/generate-apps-tree.py
         language: system
         pass_filenames: false
-        files: '^(kubernetes/apps/.*/ks\.yaml|scripts/generate-apps-tree\.py|CLAUDE\.md)$'
+        files: '^(kubernetes/apps/.*/ks\.yaml|scripts/generate-apps-tree\.py|AGENTS\.md)$'
