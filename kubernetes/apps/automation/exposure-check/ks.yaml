@@ -1,0 +1,22 @@
+# Flux Kustomization wrapper for the exposure-check secret(s). The DAG
+# itself lives in dev/dagu-dags (git-synced into the dagu scheduler); this
+# app only provisions the automation-ns Secret the DAG mounts for its Kuma
+# heartbeat token. No PVC/RBAC — the check is stateless.
+#
+# No metadata.namespace: the parent automation/kustomization.yaml sets
+# namespace: automation at the kustomize top level.
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: exposure-check
+spec:
+  interval: 1h
+  path: ./kubernetes/apps/automation/exposure-check/app
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: automation
+  wait: false

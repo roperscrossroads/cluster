@@ -21,3 +21,4 @@ resources:
   - ./autoloop/ks.yaml
   - ./hermes-peer/ks.yaml
   - ./memory-loop/ks.yaml
+  - ./exposure-check/ks.yaml
