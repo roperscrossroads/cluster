@@ -31,3 +31,6 @@ Thumbs.db
 
 # Local Claude Code tooling state
 .claude/
+
+# Local MCP config — may carry token refs; never commit
+.mcp.json
