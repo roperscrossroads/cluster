@@ -22,3 +22,4 @@ resources:
   - ./hermes-peer/ks.yaml
   - ./memory-loop/ks.yaml
   - ./exposure-check/ks.yaml
+  - ./estate-sweep/ks.yaml

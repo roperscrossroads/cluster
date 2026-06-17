@@ -1,0 +1,25 @@
+# Flux Kustomization wrapper for the estate-sweep secrets. The nightly sweep
+# DAG itself lives in dev/dagu-dags (git-synced into the dagu scheduler); this
+# app provisions the automation-ns Secrets the DAG mounts:
+#   estate-sweep-engram     (ENGRAM_HTTP_TOKEN)        — stages 3-4
+#   estate-sweep-litellm    (LITELLM_VKEY)             — stage 5 (deferred until Part 3)
+#   estate-sweep-kuma       (KUMA_PUSH_URL)            — stage 7 heartbeat
+#   estate-sweep-deploy-key (id_ed25519, RO)           — clone dev/lab (stage 3 repos.yaml)
+#
+# No metadata.namespace: the parent automation/kustomization.yaml sets
+# namespace: automation at the kustomize top level.
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: estate-sweep
+spec:
+  interval: 1h
+  path: ./kubernetes/apps/automation/estate-sweep/app
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: automation
+  wait: false
