@@ -1,0 +1,14 @@
+---
+# Long-lived ServiceAccount token Secret. Needed because the consumer is an
+# EXTERNAL client (the operator workstation) that cannot use projected/
+# auto-rotated in-cluster tokens. Kubernetes populates .data.token and
+# .data["ca.crt"] once the SA exists; we read those to build the read-only
+# kubeconfig the MCP server consumes (KUBECONFIG env).
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mcp-reader-token
+  namespace: automation
+  annotations:
+    kubernetes.io/service-account.name: mcp-reader
+type: kubernetes.io/service-account-token

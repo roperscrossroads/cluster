@@ -14,10 +14,10 @@ kubernetes/apps/
 │                    #   spawn in arc-runners ns; ARC controller in arc-systems
 ├── automation/      # autoloop, dagu, estate-sweep, exposure-check,
 │                    #   health-cluster, health-kuma, health-smart, health-zfs,
-│                    #   hermes-peer, memory-loop, nemo-monitor, notes-rag,
-│                    #   notes-verifier, ops-data-credentials, researcher —
-│                    #   DAGs git-synced from dev/dagu-dags; cluster's workflow
-│                    #   engine
+│                    #   hermes-peer, mcp-reader, memory-loop, nemo-monitor,
+│                    #   notes-rag, notes-verifier, ops-data-credentials,
+│                    #   researcher — DAGs git-synced from dev/dagu-dags;
+│                    #   cluster's workflow engine
 ├── cert-manager/    # cert-manager
 ├── cnpg-system/     # operator, operator-crds
 ├── copilot-peer/    # peer
