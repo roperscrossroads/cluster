@@ -14,6 +14,16 @@ spec:
         namespace: arc-systems
   interval: 1h
   values:
+    # Pin the controller ServiceAccount explicitly so the chart's
+    # manager_role_binding template skips its live-cluster discovery
+    # (lookup by label app.kubernetes.io/part-of=gha-rs-controller). That
+    # discovery aborts under offline rendering (flux-local test / helm
+    # template), and pinning is also more robust than relying on a runtime
+    # lookup. Values match the deployed arc-controller release.
+    controllerServiceAccount:
+      name: arc-controller-gha-rs-controller
+      namespace: arc-systems
+
     githubConfigUrl: "https://github.com/roperscrossroads/meshsense-docker-arm64"
     githubConfigSecret: arc-runner-set-rxr-meshsense-github
     runnerScaleSetName: meshsense-arc
