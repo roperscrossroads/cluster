@@ -19,7 +19,6 @@ resources:
   - ./health-cluster/ks.yaml
   - ./nemo-monitor/ks.yaml
   - ./mcp-reader/ks.yaml
-  - ./autoloop/ks.yaml
   - ./hermes-peer/ks.yaml
   - ./memory-loop/ks.yaml
   - ./exposure-check/ks.yaml
