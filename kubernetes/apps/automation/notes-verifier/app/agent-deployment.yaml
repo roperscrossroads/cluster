@@ -29,7 +29,7 @@ metadata:
     app.kubernetes.io/name: notes-verifier
     app.kubernetes.io/part-of: notes-verifier
 spec:
-  replicas: 1
+  replicas: 0          # SUSPENDED: using paid anthropic-haiku; resume when switched to local model
   strategy:
     type: Recreate  # single in-flight extraction; avoid two pods racing on state PVC
   selector:
