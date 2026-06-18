@@ -1,0 +1,63 @@
+---
+# Read-only ServiceAccount for an EXTERNAL Kubernetes MCP server
+# (Flux159/mcp-server-kubernetes) running on the operator workstation, outside
+# the cluster, consuming a long-lived token via a kubeconfig.
+#
+# Identity is dedicated (not shared with nemo-monitor-reader) so this consumer
+# can be audited and revoked independently. Access is the built-in aggregated
+# `view` ClusterRole (broad get/list/watch on namespaced resources, and
+# notably EXCLUDES secrets) plus a small supplementary role for the
+# cluster-scoped storage/infra reads `view` omits but this storage-heavy
+# cluster cares about. No create/update/patch/delete anywhere — the SA is
+# structurally incapable of mutating the cluster, independent of the MCP
+# server's own ALLOW_ONLY_READONLY_TOOLS filter.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mcp-reader
+  namespace: automation
+---
+# Broad namespaced read via the built-in aggregated view role.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: mcp-reader-view
+subjects:
+  - kind: ServiceAccount
+    name: mcp-reader
+    namespace: automation
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
+---
+# Supplementary cluster-scoped reads the built-in `view` role does not grant:
+# nodes, persistent volumes, storage classes, CSI nodes, volume attachments,
+# and the metrics API. Strictly get/list/watch.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: mcp-reader-infra
+rules:
+  - apiGroups: [""]
+    resources: [nodes, persistentvolumes]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: [storageclasses, csinodes, csidrivers, volumeattachments]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["metrics.k8s.io"]
+    resources: [nodes, pods]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: mcp-reader-infra
+subjects:
+  - kind: ServiceAccount
+    name: mcp-reader
+    namespace: automation
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: mcp-reader-infra
