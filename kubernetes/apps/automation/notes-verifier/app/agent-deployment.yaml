@@ -29,7 +29,7 @@ metadata:
     app.kubernetes.io/name: notes-verifier
     app.kubernetes.io/part-of: notes-verifier
 spec:
-  replicas: 0          # SUSPENDED: using paid anthropic-haiku; resume when switched to local model
+  replicas: 1
   strategy:
     type: Recreate  # single in-flight extraction; avoid two pods racing on state PVC
   selector:
@@ -61,13 +61,7 @@ spec:
               # source-of-truth on this URL.
               value: "https://litellm.home.arpa/v1"
             - name: LITELLM_MODEL
-              # TEMP — validation-only. The intended steady state is the
-              # `local` group, but the model currently loaded in LM Studio
-              # is a reasoning model whose chat template forces thinking
-              # and silently drops content. Switch back to `local` once a
-              # non-reasoning model is loaded (probe with the snippet in
-              # ~/.claude/plans/i-am-switching-claims-verifier-shiny-naur.md).
-              value: "anthropic-haiku"
+              value: "local"
             - name: LITELLM_VKEY
               valueFrom:
                 secretKeyRef:
