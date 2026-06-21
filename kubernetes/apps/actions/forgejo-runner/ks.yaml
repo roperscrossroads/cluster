@@ -16,6 +16,10 @@ spec:
       current: spec.replicas == 0 || status.availableReplicas == status.replicas
   interval: 1h
   path: ./kubernetes/apps/actions/forgejo-runner/app
+  postBuild:
+    substituteFrom:
+      - name: cluster-secrets
+        kind: Secret
   prune: true
   sourceRef:
     kind: GitRepository

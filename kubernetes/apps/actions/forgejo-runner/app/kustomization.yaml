@@ -5,4 +5,5 @@ resources:
   - ./serviceaccount.yaml
   - ./deployment.yaml
   - ./secret.sops.yaml
+  - ./secret-registry.sops.yaml
   - ./scaledobject.yaml
