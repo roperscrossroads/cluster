@@ -34,3 +34,7 @@ Thumbs.db
 
 # Local MCP config — may carry token refs; never commit
 .mcp.json
+
+# Scratch/context files — never commit
+tmp*
+TMP*
