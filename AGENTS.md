@@ -10,6 +10,7 @@
 ```
 kubernetes/apps/
 ├── actions/         # arc-controller, arc-runner-set-rxr-cluster,
+│                    #   arc-runner-set-rxr-images,
 │                    #   arc-runner-set-rxr-meshsense, forgejo-runner — runners
 │                    #   spawn in arc-runners ns; ARC controller in arc-systems
 ├── automation/      # autoloop, dagu, estate-sweep, exposure-check,
@@ -73,6 +74,24 @@ Don't put narrative or runbooks here — they live in `~/notes`:
 > Full SOPS/age guide (both this repo and `~/infra-new`, with the
 > universal footguns and the per-repo key/path/scope differences):
 > [`~/notes/local/infra/sops-age.md`](../notes/local/infra/sops-age.md).
+
+> **IRON RULE — never let a plaintext secret touch disk or shell history.**
+> Do NOT hand-roll a secret manifest, `echo`/`cat` a secret into a file, or pass
+> a secret as a command argument (it lands in `~/.bash_history` and `ps`). Use
+> the `sops-*` just recipes — they pipe `kubectl → sops` so cleartext lives only
+> in a kernel pipe:
+>
+> - **Create:** `just sops-secret <name> <namespace> <repo-relative-dest> --from-file=<key>=<abs-path> [--from-literal=<key>=<non-secret-id>]`
+>   — put every *secret* value in a file and use `--from-file` (never `--from-literal` for secrets).
+> - **Edit:** `just sops-edit <dest>` · **Verify:** `just sops-verify <dest>` · **Keys:** `just sops-keys <dest>` · **Rotate:** `just sops-refresh <dest>`
+>
+> This is the muscle-memory path so we stop creating "we need to rotate a leaked
+> token" work. Rationale, anti-patterns, and rotation: the sops-age.md guide above.
+>
+> **Shredding plaintext staging copies is encouraged — but ONLY after end-to-end
+> verification** (secret decrypts AND the workload is confirmed running on it).
+> Never shred before green: a GitHub App key is shown once, so a premature shred
+> forces painful regeneration. Stage under a gitignored `tmp-*` dir, shred when live.
 
 - All secrets are sops-encrypted with **age** (recipient
   `age12rzq0cuqfyh8syej8v26530zhhcag0d9pdsms5sp3c7d4llu7dwq9y2lw5`).
