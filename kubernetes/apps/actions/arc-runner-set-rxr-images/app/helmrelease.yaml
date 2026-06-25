@@ -1,0 +1,50 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: arc-runner-set-rxr-images
+spec:
+  chart:
+    spec:
+      chart: gha-runner-scale-set
+      version: 0.14.1
+      sourceRef:
+        kind: HelmRepository
+        name: actions-runner-controller
+        namespace: arc-systems
+  interval: 1h
+  values:
+    # Pin the controller ServiceAccount explicitly so the chart's
+    # manager_role_binding template skips its live-cluster discovery
+    # (lookup by label app.kubernetes.io/part-of=gha-rs-controller). That
+    # discovery aborts under offline rendering (flux-local test / helm
+    # template), and pinning is also more robust than relying on a runtime
+    # lookup. Values match the deployed arc-controller release.
+    controllerServiceAccount:
+      name: arc-controller-gha-rs-controller
+      namespace: arc-systems
+
+    githubConfigUrl: "https://github.com/roperscrossroads/images"
+    githubConfigSecret: arc-runner-set-rxr-images-github
+    runnerScaleSetName: images-arc
+    minRunners: 0
+    maxRunners: 2
+
+    # Non-container-mode: jobs run directly on the runner pod (no separate
+    # workflow pod). Each runner pod is --ephemeral (chart-default), so
+    # one pod = one job, deleted on completion. Same Talos-driven rationale
+    # as arc-runner-set-rxr-cluster (bundled container-mode hooks mount the
+    # work-PVC at /__e via subPath, which kubelet drops on Talos overlayfs).
+    #
+    # apko (the images repo's build tool) is low-privilege — it unpacks apk
+    # packages into a rootfs and writes an OCI tar, no RUN / no nested
+    # container / no userns — the same model as crane, which already runs
+    # clean under this hardened posture. So no relaxed securityContext is
+    # needed here. (melange, the privileged package-compiler, is out of scope.)
+    template:
+      spec:
+        serviceAccountName: arc-runner-set-rxr-images
+        containers:
+          - name: runner
+            image: ghcr.io/actions/actions-runner:latest
+            command: ["/home/runner/run.sh"]

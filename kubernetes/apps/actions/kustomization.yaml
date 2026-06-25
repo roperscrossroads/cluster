@@ -11,4 +11,5 @@ resources:
   - ./arc-controller/ks.yaml
   - ./forgejo-runner/ks.yaml
   - ./arc-runner-set-rxr-cluster/ks.yaml
+  - ./arc-runner-set-rxr-images/ks.yaml
   - ./arc-runner-set-rxr-meshsense/ks.yaml
