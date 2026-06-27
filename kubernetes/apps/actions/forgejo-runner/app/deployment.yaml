@@ -20,6 +20,10 @@ spec:
     spec:
       serviceAccountName: forgejo-runner
       automountServiceAccountToken: false
+      # Let an in-flight CI job drain on SIGTERM instead of being SIGKILLed at the
+      # 30s default — image-automation can roll this pod while a job is running.
+      # forgejo-runner's own shutdown_timeout defaults to 3h; 1h is the practical cap.
+      terminationGracePeriodSeconds: 3600
       hostNetwork: false
       hostPID: false
       hostIPC: false
