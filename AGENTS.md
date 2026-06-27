@@ -147,10 +147,11 @@ The cluster is the **k8s-native execution surface** of a hybrid estate:
 | Long-form runbooks | `~/notes/local/infra/` |
 
 The cluster talks to LiteLLM (DNS-resolvable on the home network) for
-agent workloads scheduled by Dagu. Cluster pods do not currently
-resolve `home.arpa` automatically — see the FUTURE.md note about a
-CoreDNS forwarder, and use a direct IP for now if a workload needs
-the proxy.
+agent workloads scheduled by Dagu. Cluster pods **can** resolve internal
+`home.arpa` and internal service names directly — the CoreDNS Corefile
+now has dedicated stub zones forwarding these to the lab resolvers, so
+workloads should use FQDNs, not hardcoded IPs.
+(The old "use a direct IP" caveat is retired.)
 
 ## What's NOT here
 
