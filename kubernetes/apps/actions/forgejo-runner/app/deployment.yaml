@@ -1,4 +1,3 @@
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -7,7 +6,7 @@ metadata:
     app.kubernetes.io/name: forgejo-runner
     app.kubernetes.io/component: runner
 spec:
-  replicas: 0  # KEDA scales 0 -> N -> 0; do not set this manually
+  replicas: 0 # KEDA scales 0 -> N -> 0; do not set this manually
   selector:
     matchLabels:
       app.kubernetes.io/name: forgejo-runner
@@ -36,7 +35,7 @@ spec:
         - name: forgejo-registry-creds
       initContainers:
         - name: stage-runner-config
-          image: git.lab.${SECRET_DOMAIN}/dev/runner-base:12.6.3-node22-crane0.21.7-wolfi4 # {"$imagepolicy": "flux-system:runner-base:tag"}
+          image: 12.6.3-node22-crane0.21.7-20260627 # {"$imagepolicy": "flux-system:runner-base:tag"}
           imagePullPolicy: Always
           command:
             - /bin/sh
@@ -68,7 +67,7 @@ spec:
               ephemeral-storage: 200Mi
       containers:
         - name: runner
-          image: git.lab.${SECRET_DOMAIN}/dev/runner-base:12.6.3-node22-crane0.21.7-wolfi4 # {"$imagepolicy": "flux-system:runner-base:tag"}
+          image: 12.6.3-node22-crane0.21.7-20260627 # {"$imagepolicy": "flux-system:runner-base:tag"}
           imagePullPolicy: Always
           workingDir: /data
           command:
