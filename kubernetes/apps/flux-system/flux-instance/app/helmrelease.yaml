@@ -19,6 +19,8 @@ spec:
         - kustomize-controller
         - helm-controller
         - notification-controller
+        - image-reflector-controller
+        - image-automation-controller
       sync:
         kind: GitRepository
         url: "ssh://git@github.com/roperscrossroads/cluster.git"
