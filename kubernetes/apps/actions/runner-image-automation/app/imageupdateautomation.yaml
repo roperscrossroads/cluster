@@ -1,0 +1,31 @@
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageUpdateAutomation
+metadata:
+  name: runner-base
+spec:
+  interval: 30m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  git:
+    checkout:
+      ref:
+        branch: main
+    commit:
+      author:
+        email: flux@users.noreply.github.com
+        name: flux
+      # Static message — deliberately does NOT interpolate the image ref. The
+      # ImagePolicy's resolved image is the REAL registry host; echoing it into a
+      # commit would leak an internal hostname into the public GitHub mirror. The
+      # diff itself only shows the masked `${SECRET_DOMAIN}` ref + the new tag.
+      messageTemplate: >-
+        chore(runner): automated runner-base image tag bump
+    push:
+      branch: main
+  update:
+    # Scope the marker scan to the actions tree (the only place the marker lives).
+    path: ./kubernetes/apps/actions
+    strategy: Setters

@@ -11,8 +11,9 @@
 kubernetes/apps/
 ├── actions/         # arc-controller, arc-runner-set-rxr-cluster,
 │                    #   arc-runner-set-rxr-images,
-│                    #   arc-runner-set-rxr-meshsense, forgejo-runner — runners
-│                    #   spawn in arc-runners ns; ARC controller in arc-systems
+│                    #   arc-runner-set-rxr-meshsense, forgejo-runner,
+│                    #   runner-image-automation — runners spawn in arc-runners
+│                    #   ns; ARC controller in arc-systems
 ├── automation/      # autoloop, dagu, estate-sweep, exposure-check,
 │                    #   health-cluster, health-kuma, health-smart, health-zfs,
 │                    #   hermes-peer, mcp-reader, memory-loop, nemo-monitor,

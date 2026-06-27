@@ -1,0 +1,18 @@
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImagePolicy
+metadata:
+  name: runner-base
+spec:
+  imageRepositoryRef:
+    name: runner-base
+  # Select date-stamped tags only (e.g. 12.6.3-node22-crane0.21.7-20260627).
+  # Capture the YYYYMMDD suffix and order on THAT, so a runner-version bump
+  # (12.6.3 -> 12.10.0) can't mis-sort vs the recency we actually care about.
+  # The legacy -wolfiN tags are intentionally excluded (no date to order on).
+  filterTags:
+    pattern: '^\d+\.\d+\.\d+-node\d+-crane\d+\.\d+\.\d+-(?P<ts>\d{8})$'
+    extract: '$ts'
+  policy:
+    alphabetical:
+      order: asc

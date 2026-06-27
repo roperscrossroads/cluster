@@ -1,0 +1,12 @@
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageRepository
+metadata:
+  name: runner-base
+spec:
+  # ${SECRET_DOMAIN} is substituted by kustomize-controller (postBuild) before
+  # apply — the reflector reads the resolved value, never the literal placeholder.
+  image: git.lab.${SECRET_DOMAIN}/dev/runner-base
+  interval: 10m
+  secretRef:
+    name: forgejo-registry-creds

@@ -36,7 +36,7 @@ spec:
         - name: forgejo-registry-creds
       initContainers:
         - name: stage-runner-config
-          image: git.lab.${SECRET_DOMAIN}/dev/runner-base:12.6.3-node22-crane0.21.7-wolfi4
+          image: git.lab.${SECRET_DOMAIN}/dev/runner-base:12.6.3-node22-crane0.21.7-wolfi4 # {"$imagepolicy": "flux-system:runner-base:tag"}
           imagePullPolicy: Always
           command:
             - /bin/sh
@@ -68,7 +68,7 @@ spec:
               ephemeral-storage: 200Mi
       containers:
         - name: runner
-          image: git.lab.${SECRET_DOMAIN}/dev/runner-base:12.6.3-node22-crane0.21.7-wolfi4
+          image: git.lab.${SECRET_DOMAIN}/dev/runner-base:12.6.3-node22-crane0.21.7-wolfi4 # {"$imagepolicy": "flux-system:runner-base:tag"}
           imagePullPolicy: Always
           workingDir: /data
           command:
