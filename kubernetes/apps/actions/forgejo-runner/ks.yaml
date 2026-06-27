@@ -20,6 +20,11 @@ spec:
     substituteFrom:
       - name: cluster-secrets
         kind: Secret
+      # RUNNER_BASE_TAG — image-automation updates this ConfigMap. Optional so a
+      # missing CM falls back to the deployment's :=default instead of failing.
+      - name: forgejo-runner-image
+        kind: ConfigMap
+        optional: true
   prune: true
   sourceRef:
     kind: GitRepository

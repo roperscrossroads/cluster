@@ -1,0 +1,15 @@
+---
+# Holds ONLY the runner-base image tag. Flux image-automation owns this value
+# via the image-policy setter on the data line below (correct here because the
+# field is a bare tag — the `:tag` strategy sets the whole field). The runner
+# Deployment assembles the full ref as
+#   git.lab.${SECRET_DOMAIN}/dev/runner-base:${RUNNER_BASE_TAG}
+# via postBuild substitution, so the masked registry host never appears in any
+# automation-written value (no leak into the public mirror).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: forgejo-runner-image
+  namespace: actions
+data:
+  RUNNER_BASE_TAG: 12.6.3-node22-crane0.21.7-20260627 # {"$imagepolicy": "flux-system:runner-base:tag"}
