@@ -94,6 +94,8 @@ spec:
           env:
             - name: HOME
               value: /data
+            - name: PATH
+              value: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
           volumeMounts:
             - name: runner-data
               mountPath: /data
