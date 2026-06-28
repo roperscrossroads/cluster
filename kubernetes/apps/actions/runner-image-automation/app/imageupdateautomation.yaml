@@ -15,8 +15,18 @@ spec:
         branch: main
     commit:
       author:
-        email: flux@users.noreply.github.com
-        name: flux
+        # Attribute to the repo owner so GitHub links + verifies the commit.
+        # The noreply address is an auto-verified email on the account, and the
+        # GPG key (signingKey below) carries it as its UID, so GitHub renders
+        # these automated commits as "Verified".
+        email: 72768950+roperscrossroads@users.noreply.github.com
+        name: Adam Roper
+      # OpenPGP signing key (dedicated bot keypair). Flux image-automation only
+      # supports GPG signing, not SSH. Secret holds the armored private key under
+      # `git.asc`; the public half is uploaded to the owner's GitHub GPG keys.
+      signingKey:
+        secretRef:
+          name: image-automation-signing
       # Static message — deliberately does NOT interpolate the image ref. The
       # ImagePolicy's resolved image is the REAL registry host; echoing it into a
       # commit would leak an internal hostname into the public GitHub mirror. The
