@@ -1,4 +1,3 @@
----
 # Holds ONLY the runner-base image tag. Flux image-automation owns this value
 # via the image-policy setter on the data line below (correct here because the
 # field is a bare tag — the `:tag` strategy sets the whole field). The runner
@@ -12,4 +11,4 @@ metadata:
   name: forgejo-runner-image
   namespace: actions
 data:
-  RUNNER_BASE_TAG: 12.6.3-node22-crane0.21.7-20260627 # {"$imagepolicy": "flux-system:runner-base:tag"}
+  RUNNER_BASE_TAG: 12.6.3-node22-crane0.21.7-20260628 # {"$imagepolicy": "flux-system:runner-base:tag"}
