@@ -11,6 +11,7 @@
 kubernetes/apps/
 ├── actions/         # arc-controller, arc-runner-set-rxr-cluster,
 │                    #   arc-runner-set-rxr-images,
+│                    #   arc-runner-set-rxr-kumatastic,
 │                    #   arc-runner-set-rxr-meshsense, forgejo-runner,
 │                    #   runner-image-automation — runners spawn in arc-runners
 │                    #   ns; ARC controller in arc-systems

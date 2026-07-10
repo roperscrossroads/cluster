@@ -1,0 +1,47 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: arc-runner-set-rxr-kumatastic
+spec:
+  chart:
+    spec:
+      chart: gha-runner-scale-set
+      version: 0.14.1
+      sourceRef:
+        kind: HelmRepository
+        name: actions-runner-controller
+        namespace: arc-systems
+  interval: 1h
+  values:
+    # Pin the controller ServiceAccount explicitly so the chart's
+    # manager_role_binding template skips its live-cluster discovery
+    # (lookup by label app.kubernetes.io/part-of=gha-rs-controller). That
+    # discovery aborts under offline rendering (flux-local test / helm
+    # template), and pinning is also more robust than relying on a runtime
+    # lookup. Values match the deployed arc-controller release.
+    controllerServiceAccount:
+      name: arc-controller-gha-rs-controller
+      namespace: arc-systems
+
+    githubConfigUrl: "https://github.com/roperscrossroads/kumatastic"
+    githubConfigSecret: arc-runner-set-rxr-kumatastic-github
+    runnerScaleSetName: kumatastic-arc
+    minRunners: 0
+    maxRunners: 2
+
+    # Non-container-mode: jobs run directly on the runner pod (no separate
+    # workflow pod). Each runner pod is --ephemeral (chart-default), so
+    # one pod = one job, deleted on completion. Same Talos-driven rationale
+    # as arc-runner-set-rxr-images (bundled container-mode hooks mount the
+    # work-PVC at /__e via subPath, which kubelet drops on Talos overlayfs).
+    #
+    # kumatastic's build workflow is daemonless (apko/crane + uv, no docker
+    # build) — like the images repo it needs no relaxed securityContext.
+    template:
+      spec:
+        serviceAccountName: arc-runner-set-rxr-kumatastic
+        containers:
+          - name: runner
+            image: ghcr.io/actions/actions-runner:latest
+            command: ["/home/runner/run.sh"]
