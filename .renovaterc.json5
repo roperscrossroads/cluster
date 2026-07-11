@@ -20,6 +20,9 @@
     enabled: true,
     schedule: ["every weekend"],
   },
+  // Drip-feed instead of a burst: extends includes :disableRateLimiting (which
+  // otherwise uncaps concurrent PRs), so cap open PRs at 10 at a time.
+  prConcurrentLimit: 10,
   ignorePaths: ["**/*.sops.*"],
   flux: {
     managerFilePatterns: ["/(^|/)kubernetes/.+\\.ya?ml(?:\\.j2)?$/"],
