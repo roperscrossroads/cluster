@@ -12,6 +12,14 @@
   dependencyDashboard: true,
   dependencyDashboardTitle: "Renovate Dashboard :robot:",
   schedule: ["every weekend"],
+  // NB: gitAuthor is intentionally NOT set here — Renovate ignores gitAuthor
+  // from repo config for security. It's set as RENOVATE_GIT_AUTHOR in the
+  // self-hosted workflow (renovate.yaml) so commits attribute to the owner.
+  // Refresh lockfiles (mise.lock, etc.) on the same weekend cadence.
+  lockFileMaintenance: {
+    enabled: true,
+    schedule: ["every weekend"],
+  },
   ignorePaths: ["**/*.sops.*"],
   flux: {
     managerFilePatterns: ["/(^|/)kubernetes/.+\\.ya?ml(?:\\.j2)?$/"],
@@ -34,6 +42,15 @@
       matchDatasources: ["docker"],
       matchManagers: ["helmfile"],
       overrideDepName: "{{packageName}}",
+    },
+    {
+      // Internally-built images live on the in-cluster registry, which is
+      // unreachable from cloud-hosted Renovate (ENOTFOUND) and is versioned by
+      // its own CI, not Renovate. Skip lookups to avoid noise + wasted requests.
+      description: "Ignore internally-hosted images",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["/^registry\\.home\\.arpa(:[0-9]+)?\\//"],
+      enabled: false,
     },
     {
       description: "Flux Operator Group",

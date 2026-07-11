@@ -1,0 +1,52 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+# Self-hosted Renovate — opens dependency-bump PRs on a schedule.
+#
+# Authenticated with a Personal Access Token (secret RENOVATE_TOKEN) that
+# belongs to the repo owner rather than a GitHub App / renovate[bot]. Combined
+# with `gitAuthor` in .renovaterc.json5, this makes every Renovate PR and merged
+# commit attribute to the owner so it counts on the GitHub contribution graph.
+#
+# github-hosted on purpose (not the self-hosted cluster runner) so version bumps
+# keep flowing even when the cluster is down. The PAT — not GITHUB_TOKEN — does
+# all the git/PR work, hence the minimal `contents: read` permission below.
+name: "Renovate"
+
+on:
+  workflow_dispatch:
+    inputs:
+      dryRun:
+        description: "Dry-run mode (extract | lookup | full)"
+        type: string
+        required: false
+        default: ""
+      logLevel:
+        description: "Log level"
+        type: string
+        required: false
+        default: "info"
+  schedule:
+    - cron: "0 */3 * * 6,0" # every 3h on Sat/Sun — matches `schedule: every weekend`
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  renovate:
+    name: Renovate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Renovate
+        uses: renovatebot/github-action@b50d2ba2bd928235abdcc14d06dfafc217f1c565 # v46.1.18
+        env:
+          RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
+          RENOVATE_REPOSITORIES: ${{ github.repository }}
+          # gitAuthor must be set at the self-hosted level (Renovate ignores it
+          # from repo config) — this is what attributes commits to the owner.
+          RENOVATE_GIT_AUTHOR: "Adam Roper <72768950+roperscrossroads@users.noreply.github.com>"
+          RENOVATE_DRY_RUN: ${{ inputs.dryRun || '' }}
+          LOG_LEVEL: ${{ inputs.logLevel || 'info' }}
