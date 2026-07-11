@@ -23,6 +23,11 @@
   // Drip-feed instead of a burst: extends includes :disableRateLimiting (which
   // otherwise uncaps concurrent PRs), so cap open PRs at 10 at a time.
   prConcurrentLimit: 10,
+  // Commit via the GitHub API rather than local git+push, so GitHub signs the
+  // commits with its web-flow key → they show "Verified" (default only for
+  // GitHub-App auth; must be explicit with the PAT this workflow uses). Author
+  // still comes from RENOVATE_GIT_AUTHOR, so owner attribution is preserved.
+  platformCommit: "enabled",
   ignorePaths: ["**/*.sops.*"],
   flux: {
     managerFilePatterns: ["/(^|/)kubernetes/.+\\.ya?ml(?:\\.j2)?$/"],
