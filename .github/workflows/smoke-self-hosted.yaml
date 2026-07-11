@@ -7,6 +7,9 @@ on:
     paths:
       - .github/workflows/smoke-self-hosted.yaml
 
+permissions:
+  contents: read
+
 jobs:
   smoke:
     runs-on: cluster-arc
