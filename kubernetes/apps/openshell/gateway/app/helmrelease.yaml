@@ -16,7 +16,7 @@ spec:
   values:
     image:
       repository: ghcr.io/nvidia/openshell/gateway
-      tag: "0.0.51"
+      tag: "0.0.80"
       pullPolicy: IfNotPresent
     supervisor:
       image:
