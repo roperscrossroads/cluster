@@ -1,0 +1,127 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+# Offline Flux render check (successor to flux-local). Two jobs on every PR that
+# touches kubernetes/**:
+#   - test: reconcile + render all Kustomizations/HelmReleases, fail on any error
+#   - diff: render PR vs. base and post the rendered manifest delta as a comment,
+#           so a reviewer sees exactly what a chart/image bump actually changes
+#           in-cluster (RBAC rules, env, images) before merging.
+name: "Flate"
+
+on:
+  pull_request:
+    branches: ["main"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  filter:
+    name: Flate - Filter
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.changed-files.outputs.any_changed }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Get Changed Files
+        id: changed-files
+        uses: bjw-s-labs/action-changed-files@a9a36fb08ce06db9b02fbd8026cc2c0945eb9841 # v0.6.0
+        with:
+          patterns: kubernetes/**
+
+  test:
+    name: Flate - Test
+    needs: filter
+    if: ${{ needs.filter.outputs.changed == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install Flate
+        uses: home-operations/flate/action@0fc37fae10cf3c265294f6adebc6d6c100c74ea5 # v0.4.10
+
+      - name: Run Flate Test
+        run: flate test all --path ./kubernetes/flux/cluster
+
+  diff:
+    name: Flate - Diff
+    needs: filter
+    if: ${{ needs.filter.outputs.changed == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout Pull Request Branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          path: pull
+
+      - name: Checkout Default Branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: "${{ github.event.repository.default_branch }}"
+          persist-credentials: false
+          path: default
+
+      - name: Install Flate
+        uses: home-operations/flate/action@0fc37fae10cf3c265294f6adebc6d6c100c74ea5 # v0.4.10
+
+      - name: Run Flate Diff
+        id: diff
+        run: |
+          # --path-orig puts flate in changed-only mode: it reconciles just the
+          # subtree the PR touches, so the diff stays scoped and small.
+          flate diff all \
+            --path ./pull/kubernetes/flux/cluster \
+            --path-orig ./default/kubernetes/flux/cluster \
+            -o github > diff.patch || true
+          {
+            echo 'diff<<DIFF_EOF'
+            head -c 60000 diff.patch
+            echo DIFF_EOF
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "### Flate Diff"
+            echo '```diff'
+            head -c 60000 diff.patch
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Add Comment
+        if: ${{ steps.diff.outputs.diff != '' }}
+        continue-on-error: true
+        uses: mshick/add-pr-comment@8e4927817251f1ff60c001f04568532b38e0b4a0 # v3.11
+        with:
+          message-id: "${{ github.event.pull_request.number }}/flate-diff"
+          message-failure: Flate diff was not successful
+          message: |
+            ```diff
+            ${{ steps.diff.outputs.diff }}
+            ```
+
+  success:
+    name: Flate - Success
+    needs: ["test", "diff"]
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    steps:
+      - name: Any jobs failed?
+        if: ${{ contains(needs.*.result, 'failure') }}
+        run: exit 1
+
+      - name: All jobs passed or skipped?
+        if: ${{ !(contains(needs.*.result, 'failure')) }}
+        run: echo "All jobs passed or skipped" && echo "${{ toJSON(needs.*.result) }}"
