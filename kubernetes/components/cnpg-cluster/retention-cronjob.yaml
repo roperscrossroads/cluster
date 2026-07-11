@@ -36,7 +36,7 @@ spec:
               # their catalog and only `latest` remains under
               # bitnami/kubectl (versioned tags moved to the frozen
               # bitnamilegacy/* org).
-              image: docker.io/alpine/k8s:1.32.4
+              image: docker.io/alpine/k8s:1.36.2
               env:
                 - name: CLUSTER_NAME
                   value: PLACEHOLDER_APP_NAME              # replaced via kustomize
