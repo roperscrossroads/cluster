@@ -8,7 +8,7 @@ spec:
   chart:
     spec:
       chart: helm-chart
-      version: "0.0.51"
+      version: "0.0.80"
       sourceRef:
         kind: HelmRepository
         name: openshell
@@ -16,12 +16,12 @@ spec:
   values:
     image:
       repository: ghcr.io/nvidia/openshell/gateway
-      tag: "0.0.51"
+      tag: "0.0.80"
       pullPolicy: IfNotPresent
     supervisor:
       image:
         repository: ghcr.io/nvidia/openshell/supervisor
-        tag: "0.0.51"
+        tag: "0.0.80"
       sideloadMethod: "image-volume"      # k8s 1.36 ⇒ ImageVolume GA (verified on cluster)
     # --- TLS + JWT: self-contained self-signed pkiInitJob (internal mTLS control plane) ---
     pkiInitJob:
@@ -44,8 +44,6 @@ spec:
       sandboxImagePullPolicy: IfNotPresent
       workspaceDefaultStorageSize: "10Gi"
       # grpcEndpoint empty → auto: https://openshell.openshell.svc.cluster.local:8080
-    postgres:
-      enabled: false
     grpcRoute:
       enabled: false                                 # M1: port-forward; GRPCRoute deferred
     # --- gateway pinned to the dedicated sandbox node via label + toleration ---
