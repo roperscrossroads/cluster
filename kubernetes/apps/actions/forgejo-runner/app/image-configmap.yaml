@@ -11,4 +11,4 @@ metadata:
   name: forgejo-runner-image
   namespace: actions
 data:
-  RUNNER_BASE_TAG: 12.6.3-node22-crane0.21.7-20260712 # {"$imagepolicy": "flux-system:runner-base:tag"}
+  RUNNER_BASE_TAG: 12.6.3-node22-crane0.21.7-20260713 # {"$imagepolicy": "flux-system:runner-base:tag"}
