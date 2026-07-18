@@ -168,7 +168,7 @@ spec:
         # initContainer fixes ownership before the main container starts.
         initContainers:
           - name: init-chown-data
-            image: public.ecr.aws/docker/library/busybox:1.37
+            image: public.ecr.aws/docker/library/busybox:1.38
             command: ["sh", "-c", "chown -R 1000:2000 /prometheus"]
             securityContext:
               runAsNonRoot: false
