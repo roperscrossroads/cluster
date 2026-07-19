@@ -40,7 +40,7 @@ spec:
                 path: /spec/template/spec/initContainers
                 value:
                   - name: git-sync-init
-                    image: registry.k8s.io/git-sync/git-sync:v4.4.1
+                    image: registry.k8s.io/git-sync/git-sync:v4.7.1
                     imagePullPolicy: IfNotPresent
                     env:
                       - {name: GITSYNC_REPO, value: "ssh://forgejo@gitd.home.arpa/dev/dagu-dags.git"}
@@ -69,7 +69,7 @@ spec:
                 path: /spec/template/spec/containers/-
                 value:
                   name: git-sync
-                  image: registry.k8s.io/git-sync/git-sync:v4.4.1
+                  image: registry.k8s.io/git-sync/git-sync:v4.7.1
                   imagePullPolicy: IfNotPresent
                   env:
                     - {name: GITSYNC_REPO, value: "ssh://forgejo@gitd.home.arpa/dev/dagu-dags.git"}
