@@ -8,7 +8,7 @@ JUST_UNSTABLE = "1"
 
 [tools]
 "python" = "3.13.7" # required:template (downgraded from 3.14.4 — mise's 3.14 tarball is freethreaded with no lib/)
-"uv" = "0.11.28" # required:template
+"uv" = "0.11.29" # required:template
 "pipx" = "1.11.1" # required:template
 "pipx:makejinja" = "2.8.2" # required:template
 "aqua:budimanjojo/talhelper" = "3.1.13"
