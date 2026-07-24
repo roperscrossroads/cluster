@@ -146,6 +146,70 @@ spec:
                   timeoutSeconds: 10
                   failureThreshold: 3
                   successThreshold: 1
+
+          # ---------------------------------------------------------------
+          # Pin Deployment selectors to stable identity labels.
+          #
+          # The chart renders `helm.sh/chart: dagu-<version>` *into*
+          # spec.selector.matchLabels. A Deployment's selector is immutable
+          # after creation — it's the identity key the ReplicaSet controller
+          # uses to adopt pods — so every chart bump asked Helm to make an
+          # illegal change and the upgrade failed with:
+          #
+          #   Deployment.apps "dagu-scheduler" is invalid: spec.selector:
+          #     Invalid value: {... "helm.sh/chart":"dagu-1.0.10"}:
+          #     field is immutable
+          #
+          # Observed 1.0.6 -> 1.0.10 (2026-07-23): Flux exhausted its 3
+          # retries, rolled back to 1.0.6, and the stalled HelmRelease then
+          # blocked the memory-loop and notes-rag Kustomizations via
+          # dependsOn. Recreating the Deployments clears the current break;
+          # this patch is what stops it recurring on 1.0.11.
+          #
+          # Restricting matchLabels to the stable identity labels makes the
+          # selector version-independent, so future bumps produce no
+          # selector diff at all. The pod template keeps the chart's full
+          # label set — a selector need only be a *subset* of template
+          # labels, and Helm's own guidance is that it be a stable one.
+          #
+          # `replace` rather than `remove` is deliberate: it stays valid if
+          # upstream later drops helm.sh/chart from the selector itself,
+          # whereas `remove` on a then-missing path would hard-error.
+          #
+          # dagu-worker-general is deliberately NOT patched — its selector
+          # carries no version-derived label, so it is already stable. (Its
+          # one-time break was a real rename, daguit.dev/worker-pool ->
+          # dagu.sh/worker-pool, fixed by the same recreate.)
+          - target:
+              kind: Deployment
+              name: dagu-scheduler
+            patch: |
+              - op: replace
+                path: /spec/selector/matchLabels
+                value:
+                  app.kubernetes.io/name: dagu
+                  app.kubernetes.io/instance: dagu
+                  app.kubernetes.io/component: scheduler
+          - target:
+              kind: Deployment
+              name: dagu-coordinator
+            patch: |
+              - op: replace
+                path: /spec/selector/matchLabels
+                value:
+                  app.kubernetes.io/name: dagu
+                  app.kubernetes.io/instance: dagu
+                  app.kubernetes.io/component: coordinator
+          - target:
+              kind: Deployment
+              name: dagu-ui
+            patch: |
+              - op: replace
+                path: /spec/selector/matchLabels
+                value:
+                  app.kubernetes.io/name: dagu
+                  app.kubernetes.io/instance: dagu
+                  app.kubernetes.io/component: ui
   values:
     image:
       repository: ghcr.io/dagucloud/dagu
