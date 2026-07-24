@@ -1,0 +1,42 @@
+---
+# Backstop for the CloudNativePG CRD/chart pairing (see scripts/check-cnpg-crds.py
+# and the .pre-commit-config.yaml hook): fails if the operator OCIRepository tag
+# was bumped without re-vendoring the decoupled operator-crds/app/crds.yaml. That
+# skew (bead agents-cgp6) left the operator upgrade rolled back for ~11 days.
+# Pure filesystem derivation, github-hosted.
+name: "CNPG CRDs Check"
+
+on:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "kubernetes/apps/cnpg-system/operator/app/ocirepository.yaml"
+      - "kubernetes/apps/cnpg-system/operator-crds/app/crds.yaml"
+      - "scripts/check-cnpg-crds.py"
+  push:
+    branches: ["main"]
+    paths:
+      - "kubernetes/apps/cnpg-system/operator/app/ocirepository.yaml"
+      - "kubernetes/apps/cnpg-system/operator-crds/app/crds.yaml"
+      - "scripts/check-cnpg-crds.py"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: cnpg crds in sync
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: CRDs match operator chart tag
+        run: python3 scripts/check-cnpg-crds.py

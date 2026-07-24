@@ -46,3 +46,12 @@ repos:
         language: system
         pass_filenames: false
         files: '^(kubernetes/apps/.*/ks\.yaml|scripts/generate-apps-tree\.py|AGENTS\.md)$'
+      # Not a generator (re-vendoring needs `helm pull`): a pure check that the
+      # decoupled CloudNativePG CRDs weren't left behind by an operator chart
+      # bump. CI re-runs the same script (.github/workflows/cnpg-crds-check.yaml).
+      - id: cnpg-crds
+        name: cnpg CRDs track the operator chart tag
+        entry: python3 scripts/check-cnpg-crds.py
+        language: system
+        pass_filenames: false
+        files: '^(kubernetes/apps/cnpg-system/operator/app/ocirepository\.yaml|kubernetes/apps/cnpg-system/operator-crds/app/crds\.yaml|scripts/check-cnpg-crds\.py)$'
