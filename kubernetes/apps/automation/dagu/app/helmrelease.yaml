@@ -210,6 +210,133 @@ spec:
                   app.kubernetes.io/name: dagu
                   app.kubernetes.io/instance: dagu
                   app.kubernetes.io/component: ui
+
+          # ---------------------------------------------------------------
+          # Non-root migration (bead agents-ailb). Root cause CONFIRMED
+          # from live evidence 2026-07-24 — it is NOT the "entrypoint fails
+          # with sudo: unknown user" theory the bead/runbook inferred.
+          #
+          # Chart 1.0.10 switches `command:` -> `args:`. `command` overrode
+          # the image ENTRYPOINT (/entrypoint.sh); `args` does not, so the
+          # entrypoint now runs. It SUCCEEDS but drops privileges to the
+          # image's default PUID/PGID (1000/1000) via `sudo -u "#1000"`
+          # (verified: `/entrypoint.sh id` -> uid=1000(dagu), exit 0). dagu
+          # then runs as uid 1000, but DAGU_HOME=/data and the operational
+          # dirs /data/{dag-runs,queue,proc} are mode 0750 owned by
+          # 65534:65534 (who NFS root_squash maps writes to). uid 1000 can
+          # neither traverse nor write them -> pods never go Ready -> Helm
+          # times out at 5m -> rollback. 1.0.6 only worked because `command`
+          # bypassed the entrypoint and it ran as root (squashed to 65534).
+          #
+          # Fix: restore the `command:` form (identical argv to 1.0.6, so
+          # the entrypoint stays bypassed) AND pin the process to uid 65534
+          # directly, matching the PVC's existing ownership. The container
+          # is never root at any instant -> runAsNonRoot / PSA restricted.
+          # 65534 (not the chart's fsGroup:1000) => zero data migration:
+          # the PVC's ~29k objects are already 65534:65534. fsGroup is inert
+          # here regardless (all democratic-csi drivers are fsGroupPolicy
+          # ReadWriteOnceWithFSType; dagu-data is RWX), set only for intent.
+          #
+          # `args: []` is required: command + non-empty args would duplicate
+          # the argv (command appends args). Container securityContext is
+          # `add` (chart renders none); pod securityContext is `replace`
+          # (chart renders {fsGroup: 1000}).
+          - target: {kind: Deployment, name: dagu-coordinator}
+            patch: |
+              - op: add
+                path: /spec/template/spec/containers/0/command
+                value: [dagu, coordinator, --config, /etc/dagu/dagu.yaml]
+              - op: replace
+                path: /spec/template/spec/containers/0/args
+                value: []
+              - op: replace
+                path: /spec/template/spec/securityContext
+                value:
+                  runAsNonRoot: true
+                  runAsUser: 65534
+                  runAsGroup: 65534
+                  fsGroup: 65534
+                  seccompProfile: {type: RuntimeDefault}
+              - op: add
+                path: /spec/template/spec/containers/0/securityContext
+                value:
+                  allowPrivilegeEscalation: false
+                  capabilities: {drop: [ALL]}
+          - target: {kind: Deployment, name: dagu-scheduler}
+            patch: |
+              - op: add
+                path: /spec/template/spec/containers/0/command
+                value: [dagu, scheduler, --config, /etc/dagu/dagu.yaml]
+              - op: replace
+                path: /spec/template/spec/containers/0/args
+                value: []
+              - op: replace
+                path: /spec/template/spec/securityContext
+                value:
+                  runAsNonRoot: true
+                  runAsUser: 65534
+                  runAsGroup: 65534
+                  fsGroup: 65534
+                  seccompProfile: {type: RuntimeDefault}
+              - op: add
+                path: /spec/template/spec/containers/0/securityContext
+                value:
+                  allowPrivilegeEscalation: false
+                  capabilities: {drop: [ALL]}
+          - target: {kind: Deployment, name: dagu-ui}
+            patch: |
+              - op: add
+                path: /spec/template/spec/containers/0/command
+                value: [dagu, server, --config, /etc/dagu/dagu.yaml]
+              - op: replace
+                path: /spec/template/spec/containers/0/args
+                value: []
+              - op: replace
+                path: /spec/template/spec/securityContext
+                value:
+                  runAsNonRoot: true
+                  runAsUser: 65534
+                  runAsGroup: 65534
+                  fsGroup: 65534
+                  seccompProfile: {type: RuntimeDefault}
+              - op: add
+                path: /spec/template/spec/containers/0/securityContext
+                value:
+                  allowPrivilegeEscalation: false
+                  capabilities: {drop: [ALL]}
+          # Worker: same non-root treatment, PLUS restore the shared PVC.
+          # Chart 1.0.10 flips the worker's `data` volume from the dagu-data
+          # PVC to an emptyDir (upstream assumes stateless workers). Ours
+          # must see the git-synced DAGs at /data/git/dagu-dags/current/dags
+          # and share run state on the RWX PVC, so override it back.
+          # volumes[0] is `data`, volumes[1] is `config` (verified in the
+          # offline render). Note argv gains --worker.coordinators in 1.0.10.
+          - target: {kind: Deployment, name: dagu-worker-general}
+            patch: |
+              - op: add
+                path: /spec/template/spec/containers/0/command
+                value: [dagu, worker, --config, /etc/dagu/dagu.yaml, --worker.coordinators, "dagu-coordinator.automation.svc.cluster.local:50055", --worker.labels, "environment=home,pool=general"]
+              - op: replace
+                path: /spec/template/spec/containers/0/args
+                value: []
+              - op: replace
+                path: /spec/template/spec/securityContext
+                value:
+                  runAsNonRoot: true
+                  runAsUser: 65534
+                  runAsGroup: 65534
+                  fsGroup: 65534
+                  seccompProfile: {type: RuntimeDefault}
+              - op: add
+                path: /spec/template/spec/containers/0/securityContext
+                value:
+                  allowPrivilegeEscalation: false
+                  capabilities: {drop: [ALL]}
+              - op: remove
+                path: /spec/template/spec/volumes/0/emptyDir
+              - op: add
+                path: /spec/template/spec/volumes/0/persistentVolumeClaim
+                value: {claimName: dagu-data}
   values:
     image:
       repository: ghcr.io/dagucloud/dagu
