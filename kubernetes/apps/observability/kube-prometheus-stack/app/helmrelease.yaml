@@ -106,6 +106,32 @@ spec:
               resources:
                 requests:
                   storage: 1Gi
+        # Same local-path + subPath EACCES trap documented on Prometheus
+        # below, and it bit Alertmanager too: kubelet creates the subPath dir
+        # (alertmanager-db) root:root 0755 on a hostPath volume and does NOT
+        # apply fsGroup to it, so non-root Alertmanager (uid 1000) cannot
+        # write. It does not crash — it logs "Running maintenance failed ...
+        # permission denied" every 15m and silently keeps BOTH the silence
+        # database and the notification log in memory only. Consequences:
+        # silences vanish on restart, and the nflog that drives repeat/dedup
+        # suppression never persists. The data dir was empty on a 51-day-old
+        # pod. This root initContainer fixes ownership before startup.
+        initContainers:
+          - name: init-chown-data
+            image: public.ecr.aws/docker/library/busybox:1.38
+            command: ["sh", "-c", "chown -R 1000:2000 /alertmanager"]
+            securityContext:
+              runAsNonRoot: false
+              runAsUser: 0
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop: ["ALL"]
+                add: ["CHOWN"]
+            volumeMounts:
+              - name: alertmanager-kube-prometheus-stack-db
+                mountPath: /alertmanager
+                subPath: alertmanager-db
         # The ntfy webhook needs no custom CA: it targets the Caddy-fronted
         # name, whose Let's Encrypt cert validates against the default trust
         # store. See alertmanagerconfig.yaml.
