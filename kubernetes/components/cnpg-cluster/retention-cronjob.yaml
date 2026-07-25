@@ -9,8 +9,8 @@
 # plugin-based retention story we maintain our own. Single-tenant; one
 # CronJob per PG cluster.
 #
-# BACKUP_RETENTION format: Nd (days only). The script strips the 'd'
-# suffix. Other suffixes (w/m) error out — extend if needed.
+# BACKUP_RETENTION format: Nd (days only). Other suffixes are rejected
+# by the guard below — extend if needed.
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -22,10 +22,17 @@ spec:
   concurrencyPolicy: Forbid
   jobTemplate:
     spec:
+      # restartPolicy: Never (not OnFailure) so a failed pod is RETAINED and
+      # its logs remain readable. With OnFailure the job controller deletes
+      # the pod once the backoff limit is exhausted, which is why 51
+      # consecutive nightly failures (bead agents-j44z) left nothing at all
+      # to diagnose from — the root cause had to be reconstructed by diffing
+      # the live object against `kustomize build`.
+      backoffLimit: 2
       template:
         spec:
           serviceAccountName: PLACEHOLDER_RETENTION_NAME   # replaced via kustomize
-          restartPolicy: OnFailure
+          restartPolicy: Never
           containers:
             - name: prune
               # alpine/k8s ships kubectl + sh + jq + yq on alpine. We
@@ -37,6 +44,10 @@ spec:
               # bitnami/kubectl (versioned tags moved to the frozen
               # bitnamilegacy/* org).
               image: docker.io/alpine/k8s:1.36.2
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
               env:
                 - name: CLUSTER_NAME
                   value: PLACEHOLDER_APP_NAME              # replaced via kustomize
@@ -51,37 +62,110 @@ spec:
                 - -c
                 - |
                   set -eu
-                  # Date math is written for BusyBox `date` (alpine).
-                  # GNU `date -d "N days ago"` is NOT portable to
-                  # BusyBox, so we compute epoch arithmetic instead.
-                  # k8s creationTimestamps look like "2026-04-23T00:00:00Z";
-                  # BusyBox `date -d` won't parse that directly — we
-                  # munge to "2026-04-23 00:00:00" first.
-                  case "$BACKUP_RETENTION" in
-                    *d) DAYS="${BACKUP_RETENTION%d}" ;;
-                    *) echo "ERROR: BACKUP_RETENTION='$BACKUP_RETENTION' — only Nd format supported"; exit 1 ;;
+
+                  # ════════════════════════════════════════════════════════
+                  # DO NOT write braced shell parameter expansions here — a
+                  # dollar sign followed by a brace. That includes the
+                  # strip-suffix and strip-prefix forms. Note this comment
+                  # deliberately contains no such sequence: the comment is
+                  # part of the rendered manifest and is processed too.
+                  #
+                  # This manifest goes through Flux post-build substitution
+                  # (postBuild.substituteFrom in the consuming app's ks.yaml).
+                  # Flux's envsubst claims that syntax as its own and has two
+                  # distinct failure modes:
+                  #   1. a resolvable-looking name it cannot find becomes the
+                  #      EMPTY STRING, silently;
+                  #   2. a form it cannot parse at all makes envsubst exit
+                  #      non-zero, which fails the whole Kustomization.
+                  #
+                  # Mode 1 is bead agents-j44z: DAYS, NAME and TS were all
+                  # emptied here between 2026-06-05 and 2026-07-25. Emptying
+                  # DAYS set the cutoff to *now*, which marks every backup
+                  # stale — this pruner silently became a delete-every-backup
+                  # job, and only failed to execute because the emptied
+                  # NAME/TS crashed `date` on the first iteration.
+                  #
+                  # Bare "$VAR" is left alone by envsubst — use it, plus
+                  # cut/sed for string work. scripts/check-flux-substitution.py
+                  # enforces this in CI and pre-commit; the guards below are
+                  # the runtime backstop if the rule is ever broken again.
+                  # ════════════════════════════════════════════════════════
+
+                  # Retention window -> integer days.
+                  DAYS=$(printf '%s' "$BACKUP_RETENTION" | sed 's/d$//')
+                  case "$DAYS" in
+                    ''|*[!0-9]*)
+                      echo "FATAL: BACKUP_RETENTION='$BACKUP_RETENTION' did not yield integer days (got '$DAYS'); only Nd is supported"
+                      exit 1 ;;
                   esac
+                  if [ "$DAYS" -lt 1 ]; then
+                    echo "FATAL: refusing to prune with DAYS=$DAYS (must be >= 1)"
+                    exit 1
+                  fi
+
+                  # Date math is written for BusyBox `date` (alpine).
+                  # GNU `date -d "N days ago"` is NOT portable to BusyBox, so
+                  # we compute epoch arithmetic instead. k8s creationTimestamps
+                  # look like "2026-04-23T00:00:00Z"; BusyBox `date -d` won't
+                  # parse that directly — we munge to "2026-04-23 00:00:00".
                   NOW=$(date -u +%s)
                   CUTOFF_EPOCH=$((NOW - DAYS * 86400))
+
+                  # Refuse a cutoff inside the last 24h. A cutoff at/near now
+                  # marks essentially every backup stale, which is a
+                  # delete-everything request, not a retention pass. This is
+                  # the guard that makes the agents-j44z near-miss impossible
+                  # regardless of how DAYS got mangled.
+                  MAX_CUTOFF=$((NOW - 86400))
+                  if [ "$CUTOFF_EPOCH" -gt "$MAX_CUTOFF" ]; then
+                    echo "FATAL: computed cutoff is inside the last 24h (DAYS=$DAYS) — refusing to prune"
+                    exit 1
+                  fi
+
                   CUTOFF_READABLE=$(date -u -d "@$CUTOFF_EPOCH" "+%Y-%m-%dT%H:%M:%SZ")
                   echo "Pruning Backup CRs for cluster=$CLUSTER_NAME in ns=$NAMESPACE older than $CUTOFF_READABLE"
-                  STALE=""
-                  for line in $(kubectl get backup -n "$NAMESPACE" \
+
+                  # List into a variable and check the status EXPLICITLY.
+                  # In `for x in $(cmd)` a failing cmd yields an empty word
+                  # list, not an error — so the previous version printed
+                  # "Nothing to prune" and exited 0 whenever the API call
+                  # failed. A pruner that cannot reach the API must not
+                  # report success.
+                  if ! LIST=$(kubectl get backup -n "$NAMESPACE" \
                       -l "cnpg.io/cluster=$CLUSTER_NAME" \
-                      -o jsonpath='{range .items[*]}{.metadata.name}={.metadata.creationTimestamp}{"\n"}{end}'); do
-                    NAME="${line%=*}"
-                    TS="${line#*=}"
-                    TS_CLEAN=$(echo "$TS" | sed -e 's/T/ /' -e 's/Z$//')
+                      -o jsonpath='{range .items[*]}{.metadata.name}={.metadata.creationTimestamp}{"\n"}{end}'); then
+                    echo "FATAL: could not list Backup CRs for cluster=$CLUSTER_NAME in ns=$NAMESPACE"
+                    exit 1
+                  fi
+
+                  STALE=""
+                  KEPT=0
+                  for line in $LIST; do
+                    NAME=$(printf '%s' "$line" | cut -d= -f1)
+                    TS=$(printf '%s' "$line" | cut -d= -f2)
+                    if [ -z "$NAME" ] || [ -z "$TS" ]; then
+                      echo "FATAL: could not parse '$line' into name=timestamp"
+                      exit 1
+                    fi
+                    TS_CLEAN=$(printf '%s' "$TS" | sed -e 's/T/ /' -e 's/Z$//')
                     TS_EPOCH=$(date -u -d "$TS_CLEAN" +%s)
                     if [ "$TS_EPOCH" -lt "$CUTOFF_EPOCH" ]; then
                       STALE="$STALE $NAME"
+                    else
+                      KEPT=$((KEPT + 1))
                     fi
                   done
+
                   if [ -z "$STALE" ]; then
-                    echo "Nothing to prune"
+                    echo "Nothing to prune ($KEPT within window)"
                     exit 0
                   fi
+
+                  PRUNED=0
                   for name in $STALE; do
                     echo "Deleting backup/$name"
                     kubectl delete backup -n "$NAMESPACE" "$name"
+                    PRUNED=$((PRUNED + 1))
                   done
+                  echo "Pruned $PRUNED, kept $KEPT within window"

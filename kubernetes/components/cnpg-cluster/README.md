@@ -177,6 +177,47 @@ Retention is enforced by `retention-cronjob.yaml`:
   (CNPG defaults this to `none`; we override because that default
   would orphan snapshot bytes whenever the CronJob pruned a Backup.)
 
+### Hard rule: no braced shell expansions in the CronJob script
+
+**Never write a braced parameter expansion (a `$` followed by `{`) in
+`retention-cronjob.yaml`'s inline script.** Use bare `"$VAR"` plus
+`cut`/`sed` for any string manipulation.
+
+Every consumer of this Component is an app whose `ks.yaml` carries
+`postBuild.substituteFrom`, and Flux runs envsubst over the **built**
+manifests. Envsubst claims that syntax as its own, with two failure modes:
+
+| Form | What Flux does | Blast radius |
+|---|---|---|
+| Name it cannot resolve, e.g. strip-suffix on a shell variable | Replaces with the **empty string**, silently | Script misbehaves; `kustomize build` still looks correct |
+| Form it cannot parse at all | envsubst **exits non-zero** | The **whole Kustomization** fails to apply |
+
+The first mode is bead `agents-j44z`: a commit that added
+`substituteFrom` to an app purely to template an ingress hostname emptied
+`DAYS`, `NAME` and `TS` in this script. It failed for 51 consecutive
+nights. Critically, emptying the retention window made the cutoff equal to
+*now*, which marks **every** backup stale — the pruner became a
+delete-every-backup job, and only failed to execute because the emptied
+`NAME`/`TS` crashed `date` on the first loop iteration.
+
+Two defences now exist, and both matter:
+
+- `scripts/check-flux-substitution.py` — pre-commit + CI, catches the
+  pattern before it merges. Note it must follow `components:` indirection,
+  because this file lives outside any app's `spec.path`.
+- Runtime guards in the script itself — it refuses to run unless the
+  retention window parses as a positive integer **and** the computed cutoff
+  is at least 24h in the past. A mangled window now fails loudly instead of
+  deleting everything.
+
+To verify a change by hand:
+
+```bash
+kustomize build kubernetes/apps/<app>/app > /tmp/built.yaml
+SECRET_DOMAIN=example.test flux envsubst < /tmp/built.yaml > /tmp/subbed.yaml
+# extract the CronJob's command from each and diff — they must be identical
+```
+
 ### Caveat: manually-created Backup CRs
 
 CNPG only stamps the `cnpg.io/cluster=<APP_NAME>` label on `Backup`
