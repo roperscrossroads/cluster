@@ -106,11 +106,9 @@ spec:
               resources:
                 requests:
                   storage: 1Gi
-        # Internal Caddy CA for the ntfy webhook TLS is referenced
-        # directly from the AlertmanagerConfig CR via the K8s-native
-        # tlsConfig.ca.configMap field — the operator mounts the
-        # ConfigMap into the Alertmanager pod itself. No manual
-        # volumes/volumeMounts needed here.
+        # The ntfy webhook needs no custom CA: it targets the Caddy-fronted
+        # name, whose Let's Encrypt cert validates against the default trust
+        # store. See alertmanagerconfig.yaml.
 
     prometheus:
       route:

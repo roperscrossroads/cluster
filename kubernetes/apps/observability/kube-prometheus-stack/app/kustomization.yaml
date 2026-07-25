@@ -8,12 +8,7 @@ resources:
   - ./helmrelease.yaml
   - ./alertmanagerconfig.yaml
 
-# Internal Caddy CA — mounted into the alertmanager pod so its webhook
-# calls to https://ntfy.home.arpa validate cleanly. Same pattern as
-# notes-rag / notes-verifier.
-configMapGenerator:
-  - name: internal-ca
-    files:
-      - ca.crt=internal-ca.crt
-    options:
-      disableNameSuffixHash: true
+# No internal-ca configMapGenerator here: the alertmanager webhook now targets
+# the Caddy-fronted ntfy name, whose Let's Encrypt cert validates against the
+# container's default trust store. See alertmanagerconfig.yaml for why the
+# previous self-signed-vs-Caddy-root mismatch silently killed every alert.
