@@ -55,3 +55,15 @@ repos:
         language: system
         pass_filenames: false
         files: '^(kubernetes/apps/cnpg-system/operator/app/ocirepository\.yaml|kubernetes/apps/cnpg-system/operator-crds/app/crds\.yaml|scripts/check-cnpg-crds\.py)$'
+      # Flux post-build substitution rewrites the BUILT manifests, so a bad
+      # ${...} passes `kustomize build` and only corrupts the live object.
+      # It broke a backup-retention CronJob for 51 nights and briefly turned
+      # it into a delete-everything job (bead agents-j44z). Scans every
+      # manifest reachable from a substituted Kustomization, so it has to run
+      # repo-wide rather than on the changed files alone.
+      - id: flux-substitution
+        name: no unresolvable ${...} in Flux-substituted manifests
+        entry: python3 scripts/check-flux-substitution.py
+        language: system
+        pass_filenames: false
+        files: '^(kubernetes/.*\.ya?ml|scripts/check-flux-substitution\.py)$'

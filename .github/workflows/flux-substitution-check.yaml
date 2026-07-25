@@ -1,0 +1,46 @@
+---
+# Backstop for Flux post-build substitution hazards (see
+# scripts/check-flux-substitution.py and the .pre-commit-config.yaml hook).
+#
+# Flux runs envsubst over the BUILT manifests, so a bad ${...} passes
+# `kustomize build` cleanly and corrupts only the live object. Two failure
+# modes: an unresolvable name becomes the empty string silently, and an
+# unparseable form fails the whole Kustomization. The first one broke a
+# backup-retention CronJob for 51 nights and briefly reconfigured it into a
+# delete-every-backup job (bead agents-j44z).
+#
+# Pure filesystem derivation, github-hosted.
+name: "Flux Substitution Check"
+
+on:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "kubernetes/**"
+      - "scripts/check-flux-substitution.py"
+  push:
+    branches: ["main"]
+    paths:
+      - "kubernetes/**"
+      - "scripts/check-flux-substitution.py"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: no unresolvable substitution vars
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Substituted manifests carry no unresolvable ${...}
+        run: python3 scripts/check-flux-substitution.py
