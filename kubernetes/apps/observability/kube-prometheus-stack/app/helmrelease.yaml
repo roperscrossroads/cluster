@@ -160,13 +160,15 @@ spec:
         # the same non-root pod runs fine here — see runbook follow-up.)
         nodeSelector:
           kubernetes.io/hostname: talos-3
-        # The four *SelectorNilUsesHelmValues:false flags make Prom pick up
-        # ANY ServiceMonitor / PodMonitor / Probe / PrometheusRule /
-        # ScrapeConfig in any namespace, without a label restriction. This
-        # is the right default for a homelab where monitors will be added
-        # ad-hoc next to the workloads they cover.
-        # Tighten selection back to label-gated defaults (avoid scraping any
-        # PodMonitor/ServiceMonitor/etc. cluster-wide by default).
+        # true (the chart default) = label-gated: Prom selects only
+        # ServiceMonitor / PodMonitor / Probe / PrometheusRule / ScrapeConfig
+        # objects carrying `release: kube-prometheus-stack`. Deliberate — the
+        # false setting would select everything cluster-wide.
+        #
+        # The practical consequence: a hand-written CR dropped next to a
+        # workload is silently ignored unless it carries that label. Add rules
+        # via additionalPrometheusRulesMap below (the chart labels them for
+        # you), or set the label explicitly on the CR.
         podMonitorSelectorNilUsesHelmValues: true
         probeSelectorNilUsesHelmValues: true
         ruleSelectorNilUsesHelmValues: true
@@ -219,8 +221,19 @@ spec:
 
     # Custom rules from day 1 — convergent set across bjw-s + joryirving
     # homelab refs (OOM detection, ZFS pool state, Dockerhub rate limit).
-    # Add more PrometheusRule CRs in-namespace later — the
-    # ruleSelectorNilUsesHelmValues:false above picks them up cluster-wide.
+    #
+    # Rules added HERE are rendered by the chart and get the
+    # `release: kube-prometheus-stack` label automatically, which is what the
+    # selector matches. A hand-written PrometheusRule CR dropped in-namespace
+    # is NOT picked up unless it carries that label — the selectors above are
+    # all *NilUsesHelmValues:true (label-gated), not cluster-wide.
+    #
+    # Note for anything templated below: Flux's envsubst owns the `$`+brace
+    # form only, so Go-template `{{ $value }}` / `{{ $labels.x }}` (bare
+    # `$name`) pass through untouched. Never write a `$`+brace expansion in a
+    # rule unless the name is a real substituteFrom key. Writing the literal
+    # sequence even inside a comment is itself the trap — envsubst cannot
+    # parse it and aborts the entire Kustomization (bead agents-f879).
     additionalPrometheusRulesMap:
       oom-rules:
         groups:
@@ -251,6 +264,55 @@ spec:
                 expr: node_zfs_zpool_state{state!="online"} > 0
                 labels:
                   severity: critical
+      # Generic CronJob health. The built-in KubeJobFailed catches a Job that
+      # ran and failed, but it is not sufficient on its own: CronJob history
+      # limits garbage-collect the failed Job object (taking the alert with
+      # it), and it says nothing at all when a CronJob stops being scheduled.
+      # Staleness of the last SUCCESS covers both, and is the signal that was
+      # sitting in kube-state-metrics unwatched while immich-retention failed
+      # 51 nights running (bead agents-iw97).
+      #
+      # Coverage is automatic: any new CronJob is included with no per-app
+      # wiring. The 36h threshold assumes a job that should succeed at least
+      # daily — true for every CronJob in this repo today. A weekly or monthly
+      # schedule would need its own rule with a wider window.
+      cronjob-rules:
+        groups:
+          - name: cronjob
+            rules:
+              - alert: CronJobNotSucceeding
+                annotations:
+                  summary: >-
+                    CronJob {{ $labels.namespace }}/{{ $labels.cronjob }} has
+                    not succeeded in {{ $value | humanizeDuration }} — it is
+                    either failing every run or no longer being scheduled.
+                expr: |-
+                  (
+                    time() - kube_cronjob_status_last_successful_time > 36 * 3600
+                  )
+                  and on (namespace, cronjob) kube_cronjob_spec_suspend == 0
+                for: 1h
+                labels:
+                  severity: warning
+              # kube-state-metrics only emits last_successful_time once a run
+              # has actually succeeded, so a CronJob that has NEVER succeeded
+              # produces no series and would slip past the staleness rule
+              # entirely. Catch it on the schedule metric instead.
+              - alert: CronJobNeverSucceeded
+                annotations:
+                  summary: >-
+                    CronJob {{ $labels.namespace }}/{{ $labels.cronjob }} has
+                    been scheduled but has never recorded a successful run.
+                expr: |-
+                  (
+                    kube_cronjob_status_last_schedule_time
+                    unless on (namespace, cronjob)
+                      kube_cronjob_status_last_successful_time
+                  )
+                  and on (namespace, cronjob) kube_cronjob_spec_suspend == 0
+                for: 2h
+                labels:
+                  severity: warning
       dockerhub-rules:
         groups:
           - name: dockerhub
