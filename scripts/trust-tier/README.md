@@ -31,6 +31,41 @@ guard therefore protects only three things:
    are NOT part of the accepted internal corpus (e.g. the work VLAN
    `172.16.80.0/24`, real WAN IPs). Kept deliberately tight.
 
+### The guard must fail CLOSED (2026-07-25, bead `agents-rtm0`)
+
+All three checks above degrade to a **silent no-op** if the commit range handed
+to `scan.sh` cannot be resolved in the local clone, and the old code still
+printed `✓ trust-tier guard clean`:
+
+- `gitleaks --log-opts=<bad range>` logs `fatal: Invalid revision range`,
+  reports `0 commits scanned`, and **exits 0** — so `|| fail` never fires.
+- the message and content scans both guard on a non-empty capture, which an
+  invalid range makes empty, skipping their denylist loops entirely.
+
+**This triggers routinely, it is not an edge case.** `pre-push` built its range
+from `$remote_oid`, the *remote's* tip, which is only in the local object store
+if you have fetched since the remote last moved — and here the remote moves on
+its own, because Flux image-automation and Renovate push back with the deploy
+key. Any push following an automated commit produced an unscanned "clean".
+
+Observed on 2026-07-25, both states in one session: `0 commits scanned` before a
+fetch, `2 commits / 19.56 KB` after.
+
+Invariants now enforced:
+
+- `scan.sh` validates the range first (`rev-list --quiet` errors on an *invalid*
+  range but succeeds on a legitimately *empty* one) and **exits non-zero rather
+  than reporting clean** if it cannot resolve.
+- The success line states its scope — `clean (N commit(s) in <range>)` or
+  `clean (whole tree)` — so `clean (0 commit(s))` reads as suspicious on sight.
+- `pre-push` checks the remote tip is present before using it, and otherwise
+  degrades to a deliberately **wider** scan; if its guessed range resolves to
+  zero commits it escalates to a whole-tree scan rather than pass on a guess.
+- The CI backstop treats an unreachable `before` SHA (force-push, GC'd commit)
+  as a whole-tree scan.
+
+Over-scanning is always the safe direction for this guard. When in doubt, widen.
+
 ## Accepted-in-content corpus (NOT flagged)
 
 These appear in manifests by necessity and are explicitly fine in file content:

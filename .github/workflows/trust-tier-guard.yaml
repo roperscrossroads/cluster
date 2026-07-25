@@ -54,8 +54,17 @@ jobs:
         run: |
           set -euo pipefail
           zero='0000000000000000000000000000000000000000'
+          # 'before' being absent/zero was already handled. It can also be
+          # PRESENT but UNREACHABLE — e.g. a force-push after a rebase, or a
+          # commit that has been GC'd. That used to build an invalid range which
+          # no-op'd every check while still reporting clean (bead agents-rtm0).
+          # scan.sh now fails closed on it, but degrade deliberately here so a
+          # legitimate force-push gets a WIDER scan rather than a hard error.
           if [ -z "${BEFORE:-}" ] || [ "${BEFORE}" = "${zero}" ]; then
             echo "No usable 'before' SHA (new branch / first push) — scanning whole tree."
+            bash scripts/trust-tier/scan.sh
+          elif ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            echo "'before' SHA ${BEFORE} is unreachable (force-push or GC'd) — scanning whole tree."
             bash scripts/trust-tier/scan.sh
           else
             echo "Scanning range ${BEFORE}..${AFTER}"

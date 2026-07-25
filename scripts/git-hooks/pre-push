@@ -19,13 +19,53 @@ rc=0
 # git feeds "<local ref> <local oid> <remote ref> <remote oid>" per ref on stdin.
 while read -r _local_ref local_oid _remote_ref remote_oid; do
   [ "$local_oid" = "$z" ] && continue                 # branch deletion — nothing to scan
+
+  # $remote_oid is the REMOTE's tip and is only in our object store if we have
+  # fetched since the remote last moved. Here the remote moves on its own —
+  # Flux image-automation and Renovate push back with the deploy key — so an
+  # unknown remote tip is routine, not an edge case. Handing that straight to
+  # scan.sh used to produce an invalid range, which no-op'd all three checks and
+  # still printed "clean" (bead agents-rtm0). scan.sh now fails closed on it,
+  # but don't rely on the callee: pick a range that is resolvable and
+  # deliberately OVER-scans, because over-scanning is the safe direction.
+  _remote_tip_unknown=0
+  if [ "$remote_oid" != "$z" ] && ! git cat-file -e "${remote_oid}^{commit}" 2>/dev/null; then
+    echo "→ pre-push: remote tip ${remote_oid} is not in this clone (remote moved; not fetched)." >&2
+    echo "  Falling back to a conservative over-scan of everything not on a remote-tracking ref." >&2
+    remote_oid="$z"
+    _remote_tip_unknown=1
+  fi
+
+  degraded=0
   if [ "$remote_oid" = "$z" ]; then
-    # New branch on the remote: scan commits not already reachable from origin.
+    # New branch, or a remote tip we cannot see. Scan commits not already
+    # reachable from origin. merge-base against a stale remote-tracking ref
+    # gives an OLDER base, i.e. a wider scan — safe.
+    [ "$_remote_tip_unknown" = "1" ] && degraded=1
     base="$(git merge-base "$local_oid" origin/main 2>/dev/null || true)"
     range="${base:+$base..}$local_oid"
   else
     range="$remote_oid..$local_oid"
   fi
+
+  # If we could not build something resolvable, scan the whole tree rather than
+  # let the push through unscanned.
+  if ! git rev-list --quiet "$range" -- 2>/dev/null; then
+    echo "→ pre-push: '$range' is unresolvable; scanning the whole tree instead." >&2
+    bash "$scan" || rc=1
+    continue
+  fi
+
+  # A DEGRADED range (we guessed, because the remote tip was invisible) that
+  # resolves to zero commits means the guess told us nothing. Do not let that
+  # read as a clean push — widen to the whole tree. A zero-commit range from a
+  # KNOWN remote tip is genuinely nothing to push, and stays quiet.
+  if [ "$degraded" = "1" ] && [ "$(git rev-list --count "$range" -- 2>/dev/null || echo 0)" = "0" ]; then
+    echo "→ pre-push: guessed range is empty and cannot be trusted; scanning the whole tree instead." >&2
+    bash "$scan" || rc=1
+    continue
+  fi
+
   bash "$scan" "$range" || rc=1
 done
 
