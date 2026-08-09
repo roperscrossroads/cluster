@@ -83,6 +83,19 @@
       ignoreTests: true,
     },
     {
+      // Overrides the automerge above for anything living under
+      // .github/workflows/ — CI definitions are the highest-leverage
+      // supply-chain target in this repo (see AGENTS.md "Security posture"),
+      // so a human reviews these even though the action bump itself is
+      // routine. RENOVATE_TOKEN needed the Workflows PAT permission just to
+      // push these branches at all (GitHub issue #39, 2026-08-09) — don't
+      // let that permission also mean "merges itself."
+      description: "Never auto-merge workflow-file changes",
+      matchManagers: ["github-actions"],
+      matchFileNames: [".github/workflows/**"],
+      automerge: false,
+    },
+    {
       matchUpdateTypes: ["major"],
       semanticCommitType: "feat",
       commitMessagePrefix: "{{semanticCommitType}}({{semanticCommitScope}})!:",
