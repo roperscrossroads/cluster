@@ -21,7 +21,7 @@ spec:
     supervisor:
       image:
         repository: ghcr.io/nvidia/openshell/supervisor
-        tag: "0.0.86"
+        tag: "0.0.111"
       sideloadMethod: "image-volume"      # k8s 1.36 ⇒ ImageVolume GA (verified on cluster)
     # --- TLS + JWT: self-contained self-signed pkiInitJob (internal mTLS control plane) ---
     pkiInitJob:
