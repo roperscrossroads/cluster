@@ -16,11 +16,20 @@
 #      - if the cron controller can't launch within 10 min of the
 #        schedule, give up on this firing (the next 6-hour tick gets a
 #        fresh attempt)
-#   4. activeDeadlineSeconds: 1800 on the JobSpec
-#      - if the pod can't actually scan + finish in 30 min (e.g. stuck
-#        Pending because the cluster is full), kill it. With cron firing
-#        every 6 hours, missing one is fine — the next run picks up where
-#        last_timestamp left off.
+#   4. activeDeadlineSeconds: 10800 on the JobSpec
+#      - if the pod can't actually scan + finish in 3 h (e.g. stuck
+#        Pending because the cluster is full), kill it. Still well inside
+#        the 6-hour cadence (Forbid handles overlap).
+#      - WHY 3 h, NOT 30 min: upstream's poll cycle only saves
+#        last_timestamp AND the embed cache at the END of the cycle — no
+#        per-asset checkpoint. A backlog bigger than the deadline (a bulk
+#        import) therefore livelocks: every run re-fetches the identical
+#        backlog, is killed, and the cursor never advances. Seen 2026-08-24
+#        → 08-26: 10 consecutive DeadlineExceeded runs after a ~500-photo
+#        upload (each ~400 MiB of previews, ~1.9 cores for 30 min), which
+#        also fired NodeSystemSaturation on the node every 6 h. The
+#        deadline must comfortably exceed one *worst-case* import, not
+#        the steady-state trickle.
 #
 # Entrypoint: a small inline Python wrapper that imports the same modules
 # the upstream main.py uses, runs ONE poll cycle, and exits. The classifier
@@ -42,7 +51,7 @@ spec:
   jobTemplate:
     spec:
       backoffLimit: 1            # one retry then give up; next tick is in 6h anyway
-      activeDeadlineSeconds: 1800
+      activeDeadlineSeconds: 10800   # 3h — see header; must exceed a bulk-import cycle (no mid-cycle checkpoint)
       template:
         spec:
           restartPolicy: Never
@@ -73,6 +82,9 @@ spec:
               command: ["python", "-u", "-c"]
               args:
                 - |
+                  import logging
+                  # main.py normally does this; bypassing it left STATS/Saved-timestamp lines unlogged
+                  logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
                   import state
                   from pathlib import Path
                   from embedder import load_embed_cache
