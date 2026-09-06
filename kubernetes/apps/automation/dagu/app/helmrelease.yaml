@@ -120,14 +120,32 @@ spec:
               # (scheduler loop wedges; the HTTP server keeps responding),
               # so kubelet never restarts the pod.
               #
-              # Signal: the `lastTick` field inside /data/scheduler/state.json,
-              # NOT the file's mtime. The planner main loop is the only thing
-              # that advances lastTick, but the file mtime is also bumped by
-              # the zombie detector, retry scanner, and lock heartbeat — so
-              # mtime can stay fresh while the planner is wedged (observed
-              # 2026-05-14: hang at 09:11 after a git-sync symlink swap; mtime
-              # stayed green for ~4h via background goroutines until manual
-              # restart). Parsing lastTick keys the probe to the actual loop.
+              # v3 (2026-09-06): the `2.6.10 -> 2.10.7` image bump (commit
+              # 0e79b9a) changed the on-disk schema of
+              # /data/scheduler/state.json — it's now
+              # `{"version": 4, "dags": {<name>: {lastScheduledTime, ...}}}`
+              # with NO top-level `lastTick` field at all. The v2 probe's
+              # `jq -r .lastTick` therefore always returned the literal
+              # string "null", which `date -d` can't parse
+              # ("invalid date 'null'"), which makes the arithmetic
+              # expression a syntax error, which the shell treats as probe
+              # failure. Result: dagu-scheduler crash-looped continuously
+              # for the better part of a month (6400+ restarts) — every
+              # cycle got ~5-9 min of uptime before the next kill, long
+              # enough to look "up" in `kubectl get pods` at a glance but
+              # not enough to reliably finish scheduled runs.
+              #
+              # Fix: try the lastTick field for forward/backward schema
+              # compat, but fall back to the file's own mtime if the field
+              # is absent — a probe must never hard-fail on a parse error,
+              # only on genuine staleness. This reintroduces the exact
+              # weakness the v2 probe was written to avoid (mtime is also
+              # bumped by the zombie detector / retry scanner / lock
+              # heartbeat, so it can stay green during a real planner wedge
+              # — see the v1/v2 history in dagu.md), but a probe that is
+              # sometimes too lenient is better than one that is always
+              # wrong. Revisit if dagu ever exposes a real heartbeat
+              # endpoint/field again.
               #
               # Threshold: 600s stale fails the probe; with periodSeconds=60
               # and failureThreshold=3, kubelet restarts after ~3 consecutive
@@ -140,7 +158,15 @@ spec:
                     command:
                       - sh
                       - -c
-                      - "test $(($(date -u +%s) - $(date -d \"$(jq -r .lastTick /data/scheduler/state.json)\" +%s))) -lt 600"
+                      - |
+                        f=/data/scheduler/state.json
+                        lt=$(jq -r '.lastTick // empty' "$f" 2>/dev/null)
+                        if [ -n "$lt" ]; then
+                          ref=$(date -d "$lt" +%s 2>/dev/null) || ref=$(stat -c %Y "$f")
+                        else
+                          ref=$(stat -c %Y "$f")
+                        fi
+                        test $(( $(date -u +%s) - ref )) -lt 600
                   initialDelaySeconds: 90
                   periodSeconds: 60
                   timeoutSeconds: 10
