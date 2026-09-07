@@ -10,3 +10,4 @@ commonMetadata:
 resources:
   - pvc.yaml
   - secrets/kuma-metrics-key.sops.yaml
+  - secrets/kuma-push.sops.yaml

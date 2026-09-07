@@ -10,3 +10,4 @@ commonMetadata:
 resources:
   - pvc.yaml
   - secrets/litellm-health-smart-key.sops.yaml
+  - secrets/kuma-push.sops.yaml

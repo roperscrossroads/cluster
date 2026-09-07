@@ -11,3 +11,4 @@ resources:
   - pvc.yaml
   - secrets/zfs-monitor-ssh.sops.yaml
   - secrets/litellm-health-zfs-key.sops.yaml
+  - secrets/kuma-push.sops.yaml
