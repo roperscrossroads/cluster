@@ -326,3 +326,99 @@ spec:
                   count(time() - container_last_seen{image=~"(docker.io).*",container!=""} < 30) > 100
                 labels:
                   severity: warning
+      # Pod crash-loop / not-Ready. kube-state-metrics already carries both
+      # signals — nothing alerted on either before this (bead agents-sdpv):
+      # immich-server ran up ~2000 restarts on a stale NVMe-oF initiator
+      # session with zero alerting, invisible to Kuma AND Prometheus for 7
+      # days. Generic, no per-app wiring — same design as cronjob-rules.
+      pod-health-rules:
+        groups:
+          - name: pod-health
+            rules:
+              - alert: PodCrashLooping
+                annotations:
+                  summary: >-
+                    {{ $labels.namespace }}/{{ $labels.pod }} container
+                    {{ $labels.container }} is crash-looping
+                    ({{ $value | humanize }} restarts in the last 15m).
+                expr: |-
+                  increase(kube_pod_container_status_restarts_total[15m]) > 3
+                for: 10m
+                labels:
+                  severity: critical
+              - alert: PodNotReady
+                annotations:
+                  summary: >-
+                    {{ $labels.namespace }}/{{ $labels.pod }} has been
+                    non-Ready for over 15 minutes.
+                expr: |-
+                  kube_pod_status_ready{condition="true"} == 0
+                  and on (namespace, pod) kube_pod_status_phase{phase=~"Running|Pending"} == 1
+                for: 15m
+                labels:
+                  severity: warning
+      # CNPG's PodMonitor (kubernetes/components/cnpg-cluster/podmonitor.yaml)
+      # has been scraping these metrics all along — zero rules existed on top
+      # of them (bead agents-sdpv). Metric names verified against the
+      # exporter's own query definitions (cnpg-default-monitoring ConfigMap,
+      # cnpg-system ns): pg_stat_archiver's `seconds_since_last_archival`/
+      # `seconds_since_last_failure` fields and pg_replication's `lag`/
+      # `in_recovery`/`is_wal_receiver_up` fields map directly to the
+      # `cnpg_<query>_<field>` metric names below.
+      #
+      # NOT included: a backup-staleness rule. CNPG's ScheduledBackup->Backup
+      # CR flow isn't a batch/v1 CronJob, so cronjob-rules' staleness check
+      # doesn't cover it (immich-retention, the pruner, is a plain CronJob and
+      # IS already covered). Whether cnpg_collector_last_available_backup_
+      # timestamp is populated for volumeSnapshot-method backups (vs. only
+      # Barman) needs a live Prometheus label check before adding that rule —
+      # left as a follow-up rather than landing an unverified metric name.
+      cnpg-rules:
+        groups:
+          - name: cnpg
+            rules:
+              - alert: CnpgWalArchivingFailing
+                annotations:
+                  summary: >-
+                    CNPG cluster {{ $labels.pod }} has not archived a WAL
+                    segment successfully in over 2h (or hit a recent
+                    archiving failure).
+                expr: |-
+                  cnpg_pg_stat_archiver_seconds_since_last_archival > 7200
+                  or cnpg_pg_stat_archiver_seconds_since_last_failure < 3600
+                for: 15m
+                labels:
+                  severity: critical
+              - alert: CnpgReplicationLagHigh
+                annotations:
+                  summary: >-
+                    CNPG instance {{ $labels.pod }} replication lag is
+                    {{ $value | humanizeDuration }}.
+                expr: cnpg_pg_replication_lag > 300
+                for: 10m
+                labels:
+                  severity: warning
+              - alert: CnpgWalReceiverDown
+                annotations:
+                  summary: >-
+                    CNPG standby {{ $labels.pod }} is in recovery but its
+                    WAL receiver is not running.
+                expr: |-
+                  cnpg_pg_replication_in_recovery == 1
+                  and cnpg_pg_replication_is_wal_receiver_up == 0
+                for: 5m
+                labels:
+                  severity: critical
+      # NOT included here: a "mostly failing but occasionally succeeding"
+      # companion to CronJobNotSucceeding. Live example found during the
+      # 2026-09 audit: immich-pet-tagger-poll failed 3 consecutive runs
+      # (~22h/16h/10h ago) before its most recent run succeeded —
+      # CronJobNotSucceeding never fired because the last run "succeeded."
+      # A real gap, but kube_job_status_failed/succeeded are point-in-time
+      # gauges bounded by each CronJob's failedJobsHistoryLimit/
+      # successfulJobsHistoryLimit (not counters), so a naive failed>succeeded
+      # comparison is bounded by history-limit retention rather than a true
+      # failure rate, and would have shown a 3-3 tie for this exact example
+      # rather than firing. Needs a more careful design than a quick PromQL
+      # bolt-on — left as an explicit follow-up rather than shipping a rule
+      # whose correctness isn't verified.

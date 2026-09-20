@@ -39,6 +39,19 @@ spec:
             value: Watchdog
         receiver: ntfy-heartbeat
         repeatInterval: 24h
+      # Every rule in this HelmRelease already carries a `severity` label
+      # (critical: OomKilled, ZfsUnexpectedPoolState, PodCrashLooping,
+      # CnpgWalArchivingFailing, CnpgWalReceiverDown; warning: everything
+      # else) — this just routes on a label that was already there. Shares
+      # the SAME physical ntfy topic as Kuma's `kuma-critical` channel (see
+      # infra-new's sync-monitors.yml/uptime-kuma.md) — one "anything urgent"
+      # mailbox across both alerting pipelines, part of the estate-wide
+      # severity taxonomy from the 2026-09 design pass (agents-vjoy).
+      - matchers:
+          - name: severity
+            value: critical
+        receiver: ntfy-critical
+        repeatInterval: 4h
   receivers:
     - name: ntfy-infra
       webhookConfigs:
@@ -48,3 +61,7 @@ spec:
       webhookConfigs:
         - url: https://ntfy.lab.${SECRET_DOMAIN}/heartbeat
           sendResolved: false
+    - name: ntfy-critical
+      webhookConfigs:
+        - url: https://ntfy.lab.${SECRET_DOMAIN}/kuma-critical
+          sendResolved: true
