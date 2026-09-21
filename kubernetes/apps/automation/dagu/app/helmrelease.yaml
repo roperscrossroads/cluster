@@ -135,22 +135,45 @@ spec:
               # enough to look "up" in `kubectl get pods` at a glance but
               # not enough to reliably finish scheduled runs.
               #
-              # Fix: try the lastTick field for forward/backward schema
+              # v3 fix: try the lastTick field for forward/backward schema
               # compat, but fall back to the file's own mtime if the field
               # is absent — a probe must never hard-fail on a parse error,
               # only on genuine staleness. This reintroduces the exact
               # weakness the v2 probe was written to avoid (mtime is also
               # bumped by the zombie detector / retry scanner / lock
               # heartbeat, so it can stay green during a real planner wedge
-              # — see the v1/v2 history in dagu.md), but a probe that is
-              # sometimes too lenient is better than one that is always
-              # wrong. Revisit if dagu ever exposes a real heartbeat
-              # endpoint/field again.
+              # — see the v1/v2 history in dagu.md).
               #
-              # Threshold: 600s stale fails the probe; with periodSeconds=60
-              # and failureThreshold=3, kubelet restarts after ~3 consecutive
-              # failures past the threshold = ~12 min total silence.
-              # The HTTP /health readinessProbe (set by the chart) stays as-is.
+              # v4 (2026-09-21): the v3 fix stopped the parse-error crash
+              # but the pod kept crash-looping anyway (2953 restarts across
+              # the following 14 days) — a DIFFERENT bug. Under schema v4,
+              # state.json's mtime only advances when a DAG's own cron
+              # fingerprint fires; there's no periodic heartbeat write
+              # independent of the DAG set. This DAG set's hourly fires
+              # cluster at :15/:20/:25 (health-zfs/smart/kuma) and then go
+              # silent until :15 the next hour — a routine ~50min gap.
+              # Verified live 2026-09-21: state.json's mtime tracked
+              # exactly to health-smart's :20 fire, nothing else touched
+              # it. Against the old 600s threshold that's a false-stale
+              # reading every single hour, killing a perfectly healthy
+              # scheduler on schedule.
+              #
+              # Fix: widen the threshold past the worst-case inter-fire
+              # gap for the current DAG set (50min = 3000s) with headroom,
+              # rather than past a real heartbeat interval that doesn't
+              # exist in this schema. This makes the probe slower to catch
+              # a genuine wedge (up to ~71min instead of ~12min) but a
+              # probe that's occasionally slow beats one that's
+              # periodically wrong — same trade-off v3 made, wider margin.
+              # Revisit the threshold if the DAG cron set changes such that
+              # the worst-case gap grows past it, or if dagu ever exposes a
+              # real heartbeat endpoint/field to key off instead.
+              #
+              # Threshold: 4200s (70min) stale fails the probe; with
+              # periodSeconds=60 and failureThreshold=3, kubelet restarts
+              # after ~3 consecutive failures past the threshold = ~71 min
+              # total silence. The HTTP /health readinessProbe (set by the
+              # chart) stays as-is.
               - op: replace
                 path: /spec/template/spec/containers/0/livenessProbe
                 value:
@@ -166,7 +189,7 @@ spec:
                         else
                           ref=$(stat -c %Y "$f")
                         fi
-                        test $(( $(date -u +%s) - ref )) -lt 600
+                        test $(( $(date -u +%s) - ref )) -lt 4200
                   initialDelaySeconds: 90
                   periodSeconds: 60
                   timeoutSeconds: 10
