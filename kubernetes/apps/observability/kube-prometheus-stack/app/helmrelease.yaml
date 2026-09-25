@@ -383,9 +383,12 @@ spec:
                     CNPG cluster {{ $labels.pod }} has not archived a WAL
                     segment successfully in over 2h (or hit a recent
                     archiving failure).
+                # seconds_since_last_failure is -1 when archiving has never
+                # failed, so bound it below or a healthy cluster pages.
                 expr: |-
                   cnpg_pg_stat_archiver_seconds_since_last_archival > 7200
-                  or cnpg_pg_stat_archiver_seconds_since_last_failure < 3600
+                  or (cnpg_pg_stat_archiver_seconds_since_last_failure >= 0
+                      and cnpg_pg_stat_archiver_seconds_since_last_failure < 3600)
                 for: 15m
                 labels:
                   severity: critical
