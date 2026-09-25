@@ -29,6 +29,16 @@ spec:
     groupInterval: 5m
     repeatInterval: 12h
     routes:
+      # Never deliver these. InfoInhibitor is kube-prometheus-stack's internal
+      # inhibition helper, not an incident. The overcommit / major-page-fault
+      # alerts are informational on a 3-node cluster whose nodes differ in
+      # size — they fired for days and resolved on their own without anyone
+      # needing to act. Still visible in the Alertmanager/Prometheus UIs.
+      - matchers:
+          - name: alertname
+            matchType: "=~"
+            value: InfoInhibitor|KubeMemoryOvercommit|KubeCPUOvercommit|NodeMemoryMajorPagesFaults
+        receiver: "null"
       # Watchdog fires forever by design — it is proof the pipeline is alive,
       # not an incident. Split it onto its own topic so the actionable feed
       # stays actionable, and so a SILENT `heartbeat` topic becomes the signal
@@ -52,10 +62,20 @@ spec:
             value: critical
         receiver: ntfy-critical
         repeatInterval: 4h
+  # The `tpl=1&t=…&m=…` query has ntfy render the Alertmanager webhook JSON
+  # itself (ntfy message templates) instead of pushing the raw payload.
+  # Decoded:
+  #   title:   {{if eq .status "resolved"}}✅ Resolved{{else}}🔥 Firing{{end}}:
+  #            {{.commonLabels.alertname}}{{with .commonLabels.namespace}} ({{.}}){{end}}
+  #            {{if gt (len .alerts) 1}} ×{{len .alerts}}{{end}}
+  #   message: {{range .alerts}}• {{or .annotations.summary .annotations.description
+  #            .labels.alertname}}{{with .labels.pod}} [{{.}}]{{end}}\n{{end}}
+  # Edit the decoded form, then re-encode with: jq -rn --arg s '<tpl>' '$s|@uri'
   receivers:
+    - name: "null"
     - name: ntfy-infra
       webhookConfigs:
-        - url: https://ntfy.lab.${SECRET_DOMAIN}/infra
+        - url: https://ntfy.lab.${SECRET_DOMAIN}/infra?tpl=1&t=%7B%7Bif%20eq%20.status%20%22resolved%22%7D%7D%E2%9C%85%20Resolved%7B%7Belse%7D%7D%F0%9F%94%A5%20Firing%7B%7Bend%7D%7D%3A%20%7B%7B.commonLabels.alertname%7D%7D%7B%7Bwith%20.commonLabels.namespace%7D%7D%20%28%7B%7B.%7D%7D%29%7B%7Bend%7D%7D%7B%7Bif%20gt%20%28len%20.alerts%29%201%7D%7D%20%C3%97%7B%7Blen%20.alerts%7D%7D%7B%7Bend%7D%7D&m=%7B%7Brange%20.alerts%7D%7D%E2%80%A2%20%7B%7Bor%20.annotations.summary%20.annotations.description%20.labels.alertname%7D%7D%7B%7Bwith%20.labels.pod%7D%7D%20%5B%7B%7B.%7D%7D%5D%7B%7Bend%7D%7D%0A%7B%7Bend%7D%7D
           sendResolved: true
     - name: ntfy-heartbeat
       webhookConfigs:
@@ -63,5 +83,5 @@ spec:
           sendResolved: false
     - name: ntfy-critical
       webhookConfigs:
-        - url: https://ntfy.lab.${SECRET_DOMAIN}/kuma-critical
+        - url: https://ntfy.lab.${SECRET_DOMAIN}/kuma-critical?p=5&tpl=1&t=%7B%7Bif%20eq%20.status%20%22resolved%22%7D%7D%E2%9C%85%20Resolved%7B%7Belse%7D%7D%F0%9F%94%A5%20Firing%7B%7Bend%7D%7D%3A%20%7B%7B.commonLabels.alertname%7D%7D%7B%7Bwith%20.commonLabels.namespace%7D%7D%20%28%7B%7B.%7D%7D%29%7B%7Bend%7D%7D%7B%7Bif%20gt%20%28len%20.alerts%29%201%7D%7D%20%C3%97%7B%7Blen%20.alerts%7D%7D%7B%7Bend%7D%7D&m=%7B%7Brange%20.alerts%7D%7D%E2%80%A2%20%7B%7Bor%20.annotations.summary%20.annotations.description%20.labels.alertname%7D%7D%7B%7Bwith%20.labels.pod%7D%7D%20%5B%7B%7B.%7D%7D%5D%7B%7Bend%7D%7D%0A%7B%7Bend%7D%7D
           sendResolved: true
