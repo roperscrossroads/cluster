@@ -389,7 +389,7 @@ spec:
   values:
     image:
       repository: ghcr.io/dagucloud/dagu
-      tag: "2.10.7"
+      tag: "2.17.2"
       pullPolicy: IfNotPresent
 
     # Built-in JWT auth + RBAC + first-user signup.
