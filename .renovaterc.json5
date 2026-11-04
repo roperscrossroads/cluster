@@ -20,14 +20,18 @@
     enabled: true,
     schedule: ["every weekend"],
   },
-  // Drip-feed instead of a burst: extends includes :disableRateLimiting (which
-  // otherwise uncaps concurrent PRs), so cap open PRs at 10 at a time.
-  prConcurrentLimit: 10,
+  // extends includes :disableRateLimiting (no hourly cap, and it would uncap
+  // concurrent PRs too), so cap open PRs here. Was 10; raised to 25 on
+  // 2026-11-04 so a backlog of ~50 updates clears in a weekend or two instead
+  // of trickling through ten at a time. Flate now gates every PR, so a larger
+  // batch is reviewable: read each Flate diff comment before merging.
+  prConcurrentLimit: 25,
   // Branch-automerge updates (mise tools, GitHub Actions) never open a PR but
   // still need a branch, and branchConcurrentLimit defaults to
   // prConcurrentLimit. With the PR cap full of manual-review PRs, the routine
-  // auto-merges queued behind them for weeks (2026-09 → 11). Leave headroom.
-  branchConcurrentLimit: 20,
+  // auto-merges queued behind them for weeks (2026-09 → 11). Keep it well
+  // above the PR cap so automerge branches always have room.
+  branchConcurrentLimit: 40,
   ignorePaths: ["**/*.sops.*"],
   flux: {
     managerFilePatterns: ["/(^|/)kubernetes/.+\\.ya?ml(?:\\.j2)?$/"],
