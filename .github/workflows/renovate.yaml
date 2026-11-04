@@ -26,7 +26,7 @@ on:
         required: false
         default: "info"
   schedule:
-    - cron: "0 */3 * * 6,0" # every 3h on Sat/Sun — matches `schedule: every weekend`
+    - cron: "0 */3 * * *" # every 3h, every day — matches `schedule: at any time`
 
 concurrency:
   group: ${{ github.workflow }}

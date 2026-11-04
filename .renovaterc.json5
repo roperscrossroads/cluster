@@ -11,7 +11,10 @@
   ],
   dependencyDashboard: true,
   dependencyDashboardTitle: "Renovate Dashboard :robot:",
-  schedule: ["every weekend"],
+  // Any day (was "every weekend" until 2026-11-04): updates land as they're
+  // released, and the workflow cron runs every 3h daily to match. Lock-file
+  // maintenance below stays weekly on purpose.
+  schedule: ["at any time"],
   // NB: gitAuthor is intentionally NOT set here — Renovate ignores gitAuthor
   // from repo config for security. It's set as RENOVATE_GIT_AUTHOR in the
   // self-hosted workflow (renovate.yaml) so commits attribute to the owner.
