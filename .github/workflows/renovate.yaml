@@ -4,7 +4,7 @@
 #
 # Authenticated with a Personal Access Token (secret RENOVATE_TOKEN) that
 # belongs to the repo owner rather than a GitHub App / renovate[bot]. Combined
-# with `gitAuthor` in .renovaterc.json5, this makes every Renovate PR and merged
+# with RENOVATE_GIT_AUTHOR below (gitAuthor is ignored in repo config), this makes every Renovate PR and merged
 # commit attribute to the owner so it counts on the GitHub contribution graph.
 #
 # github-hosted on purpose (not the self-hosted cluster runner) so version bumps

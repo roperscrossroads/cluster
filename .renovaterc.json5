@@ -23,6 +23,11 @@
   // Drip-feed instead of a burst: extends includes :disableRateLimiting (which
   // otherwise uncaps concurrent PRs), so cap open PRs at 10 at a time.
   prConcurrentLimit: 10,
+  // Branch-automerge updates (mise tools, GitHub Actions) never open a PR but
+  // still need a branch, and branchConcurrentLimit defaults to
+  // prConcurrentLimit. With the PR cap full of manual-review PRs, the routine
+  // auto-merges queued behind them for weeks (2026-09 → 11). Leave headroom.
+  branchConcurrentLimit: 20,
   ignorePaths: ["**/*.sops.*"],
   flux: {
     managerFilePatterns: ["/(^|/)kubernetes/.+\\.ya?ml(?:\\.j2)?$/"],
@@ -94,6 +99,29 @@
       matchManagers: ["github-actions"],
       matchFileNames: [".github/workflows/**"],
       automerge: false,
+    },
+    {
+      // The chart and its two image tags live in one HelmRelease and must
+      // move together; three separate PRs leave chart and images mismatched
+      // and conflict with each other after the first merge.
+      description: "OpenShell Group",
+      groupName: "openshell",
+      matchFileNames: ["kubernetes/apps/openshell/gateway/**"],
+      group: {
+        commitMessageTopic: "{{{groupName}}} group",
+      },
+    },
+    {
+      // talosctl (mise) must match the version the nodes run (installer image
+      // in talenv.yaml). One reviewed PR for both, never a silent auto-merge
+      // of talosctl ahead of the nodes.
+      description: "Talos Group",
+      groupName: "talos",
+      matchDepNames: ["ghcr.io/siderolabs/installer", "aqua:siderolabs/talos"],
+      automerge: false,
+      group: {
+        commitMessageTopic: "{{{groupName}}} group",
+      },
     },
     {
       matchUpdateTypes: ["major"],
