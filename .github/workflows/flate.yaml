@@ -62,7 +62,10 @@ jobs:
           base: ""
 
       - name: Run Flate Test
-        run: flate test all --path ./kubernetes/flux/cluster
+        # --api-versions: charts that gate on .Capabilities.APIVersions (the
+        # OpenShell preflight requires the Agent Sandbox API) see what the
+        # live cluster serves; an offline render has no API server to ask.
+        run: flate test all --path ./kubernetes/flux/cluster --api-versions agents.x-k8s.io/v1beta1
 
   diff:
     name: Flate - Diff
@@ -103,6 +106,7 @@ jobs:
           flate diff all \
             --path ./pull/kubernetes/flux/cluster \
             --path-orig ./default/kubernetes/flux/cluster \
+            --api-versions agents.x-k8s.io/v1beta1 \
             -o github > diff.patch
           {
             echo 'diff<<DIFF_EOF'
