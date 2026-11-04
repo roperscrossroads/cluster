@@ -54,6 +54,12 @@ jobs:
 
       - name: Install Flate
         uses: home-operations/flate/action@0fc37fae10cf3c265294f6adebc6d6c100c74ea5 # v0.4.10
+        with:
+          # The action defaults base to the default branch and exports it as
+          # FLATE_BASE. The checkout here has no main ref, and --base is
+          # mutually exclusive with --path-orig, so an empty base keeps test
+          # on the full tree and lets diff use the explicit --path-orig.
+          base: ""
 
       - name: Run Flate Test
         run: flate test all --path ./kubernetes/flux/cluster
@@ -82,6 +88,12 @@ jobs:
 
       - name: Install Flate
         uses: home-operations/flate/action@0fc37fae10cf3c265294f6adebc6d6c100c74ea5 # v0.4.10
+        with:
+          # The action defaults base to the default branch and exports it as
+          # FLATE_BASE. The checkout here has no main ref, and --base is
+          # mutually exclusive with --path-orig, so an empty base keeps test
+          # on the full tree and lets diff use the explicit --path-orig.
+          base: ""
 
       - name: Run Flate Diff
         id: diff
@@ -91,7 +103,7 @@ jobs:
           flate diff all \
             --path ./pull/kubernetes/flux/cluster \
             --path-orig ./default/kubernetes/flux/cluster \
-            -o github > diff.patch || true
+            -o github > diff.patch
           {
             echo 'diff<<DIFF_EOF'
             head -c 60000 diff.patch
