@@ -29,9 +29,6 @@ spec:
       # ignored the Gateway's target, deleted the tunnel CNAMEs and tried to
       # publish the gateway's private IP (2026-11-07 outage, reverted in #93).
       - --annotation-prefix=external-dns.alpha.kubernetes.io/
-      # TEMPORARY: first rollout of v0.23 in dry-run; remove once the logs show
-      # no DELETE and only the expected records.
-      - --dry-run
     triggerLoopOnEvent: true
     policy: sync
     sources: ["crd", "gateway-httproute"]
