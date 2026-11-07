@@ -119,6 +119,17 @@
       },
     },
     {
+      // ARC's controller and runner-scale-set charts are released together and
+      // must stay on the same version: one PR for the controller and all four
+      // runner sets.
+      description: "ARC Group",
+      groupName: "actions-runner-controller",
+      matchDepNames: ["gha-runner-scale-set-controller", "gha-runner-scale-set"],
+      group: {
+        commitMessageTopic: "{{{groupName}}} group",
+      },
+    },
+    {
       // talosctl (mise) must match the version the nodes run (installer image
       // in talenv.yaml). One reviewed PR for both, never a silent auto-merge
       // of talosctl ahead of the nodes.
