@@ -133,9 +133,26 @@
       // talosctl (mise) must match the version the nodes run (installer image
       // in talenv.yaml). One reviewed PR for both, never a silent auto-merge
       // of talosctl ahead of the nodes.
-      description: "Talos Group",
+      // Split by update type: a single group took the newest of each and
+      // paired talosctl 1.14.5 with installer 1.13.12 (PR #96). Patch and
+      // minor updates now come as separate grouped PRs, each moving both deps
+      // to the same version.
+      description: "Talos Group (patch)",
       groupName: "talos",
       matchDepNames: ["ghcr.io/siderolabs/installer", "aqua:siderolabs/talos"],
+      matchUpdateTypes: ["patch"],
+      automerge: false,
+      group: {
+        commitMessageTopic: "{{{groupName}}} group",
+      },
+    },
+    {
+      // A Talos minor is a node upgrade (talosctl upgrade per node), not a
+      // merge-and-forget; Kubernetes minors depend on it.
+      description: "Talos Group (minor/major)",
+      groupName: "talos-minor",
+      matchDepNames: ["ghcr.io/siderolabs/installer", "aqua:siderolabs/talos"],
+      matchUpdateTypes: ["minor", "major"],
       automerge: false,
       group: {
         commitMessageTopic: "{{{groupName}}} group",
