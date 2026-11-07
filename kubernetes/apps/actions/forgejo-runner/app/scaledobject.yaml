@@ -9,12 +9,10 @@ spec:
       name: forgejo-runner
       key: api-token
 ---
-# minReplicaCount is 1 (NOT 0) due to a KEDA v2.19.0 bug in the
-# forgejo-runner scaler: GetMetricsAndActivity hard-codes IsActive: true
-# regardless of queue depth, so KEDA never scales the deployment back to 0.
-# Fixed in upstream main (commit 5f89276e) but not yet released. When KEDA
-# 2.20.x ships with the fix, change minReplicaCount to 0 here and bump the
-# chart version in keda-system.
+# Scale to zero when no k8s-labelled jobs are queued. Was pinned at 1 until
+# 2026-11: KEDA 2.19's forgejo-runner scaler always reported IsActive=true, so
+# it never scaled down. Fixed in the KEDA we run (2.21.0 returns
+# len(jobList) > 0). Cold start = pod start + runner registration.
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
@@ -22,7 +20,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: forgejo-runner
-  minReplicaCount: 1
+  minReplicaCount: 0
   maxReplicaCount: 3
   pollingInterval: 30
   cooldownPeriod: 120
