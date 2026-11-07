@@ -130,6 +130,16 @@
       },
     },
     {
+      // Offer each Talos dep its newest patch separately from its newest
+      // minor; without this talosctl was only offered its latest minor
+      // (1.14.x), so the patch group carried the installer alone (#103).
+      // (Separate rule: Renovate forbids separateMinorPatch together with
+      // matchUpdateTypes.)
+      description: "Talos: separate minor and patch",
+      matchDepNames: ["ghcr.io/siderolabs/installer", "aqua:siderolabs/talos"],
+      separateMinorPatch: true,
+    },
+    {
       // talosctl (mise) must match the version the nodes run (installer image
       // in talenv.yaml). One reviewed PR for both, never a silent auto-merge
       // of talosctl ahead of the nodes.
