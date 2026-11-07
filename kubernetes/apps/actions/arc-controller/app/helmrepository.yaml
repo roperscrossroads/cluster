@@ -5,6 +5,10 @@ apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 metadata:
   name: actions-runner-controller
+  # Explicit (ks.yaml's targetNamespace already puts it here) so Renovate can
+  # resolve the runner sets' cross-namespace sourceRef to this repository;
+  # without it the four gha-runner-scale-set charts were never detected.
+  namespace: arc-systems
 spec:
   type: oci
   interval: 1h
