@@ -43,7 +43,7 @@ spec:
               # their catalog and only `latest` remains under
               # bitnami/kubectl (versioned tags moved to the frozen
               # bitnamilegacy/* org).
-              image: docker.io/alpine/k8s:1.36.2
+              image: docker.io/alpine/k8s:1.37.2
               resources:
                 requests:
                   cpu: 50m

@@ -23,7 +23,7 @@ spec:
           restartPolicy: Never
           containers:
             - name: sync
-              image: docker.io/alpine/k8s:1.36.2
+              image: docker.io/alpine/k8s:1.37.2
               command:
                 - sh
                 - -ceu
