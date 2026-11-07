@@ -3,3 +3,7 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: arc-runners
+  annotations:
+    # Shared by every runner set; each set's Kustomization has it in its
+    # inventory. Never let removing one set prune the namespace for all.
+    kustomize.toolkit.fluxcd.io/prune: disabled
