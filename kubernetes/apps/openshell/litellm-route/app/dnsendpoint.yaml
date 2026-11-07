@@ -23,5 +23,5 @@ spec:
       # annotation alone isn't honored here); Cloudflare rejects a proxied
       # record pointing at an RFC1918 target.
       providerSpecific:
-        - name: external-dns.alpha.kubernetes.io/cloudflare-proxied
+        - name: cloudflare-proxied
           value: "false"
