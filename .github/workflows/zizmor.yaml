@@ -39,7 +39,7 @@ jobs:
         with:
           inputs: .github/workflows
           # renovate: datasource=github-releases depName=zizmorcore/zizmor
-          version: 1.26.1
+          version: 1.32.0
           min-severity: medium
           # Fail the check on findings via inline annotations rather than
           # uploading SARIF (keeps this off the GitHub Advanced Security path).
