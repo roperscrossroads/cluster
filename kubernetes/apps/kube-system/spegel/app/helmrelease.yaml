@@ -30,8 +30,5 @@ spec:
         - http://registry.home.arpa:8080
       additionalMirrorTargets:
         - http://registry.home.arpa:8080
-    service:
-      registry:
-        hostPort: 29999
     serviceMonitor:
       enabled: true
