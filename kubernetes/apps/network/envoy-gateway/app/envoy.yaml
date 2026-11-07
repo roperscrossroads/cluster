@@ -48,9 +48,10 @@ spec:
               # traffic, so an unset request reserved 1Gi/pod of phantom
               # headroom — with one replica of each gateway per node for HA,
               # that pinned the control-plane node at 97% memory requests on
-              # ~75Mi of real use. 256Mi is ~7x observed peak with the 1Gi
+              # ~75Mi of real use. Was 256Mi; cut to 128Mi on 2026-11-07
+              # (7-day peaks 21-34Mi per proxy, ~4x headroom), with the 1Gi
               # limit still absorbing connection/config bursts.
-              memory: 256Mi
+              memory: 128Mi
             limits:
               memory: 1Gi
       envoyService:
