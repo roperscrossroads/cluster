@@ -48,6 +48,9 @@ spec:
             resources:
               requests:
                 cpu: 10m
+                # Explicit: with only a limit set, the request defaulted to
+                # the limit (256Mi). 7-day peak is ~18Mi.
+                memory: 64Mi
               limits:
                 memory: 256Mi
     defaultPodOptions:
