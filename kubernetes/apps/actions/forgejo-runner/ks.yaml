@@ -12,8 +12,17 @@ spec:
   healthCheckExprs:
     - apiVersion: apps/v1
       kind: Deployment
-      failed: status.replicas != status.updatedReplicas
-      current: spec.replicas == 0 || status.availableReplicas == status.replicas
+      # At 0 replicas (KEDA scale-to-zero) the Deployment has no
+      # status.replicas/updatedReplicas/availableReplicas at all; an
+      # unguarded field access fails to evaluate and Flux reports the health
+      # check "in progress" until it times out. Guard every status field.
+      failed: >-
+        has(status.replicas) && status.replicas > 0 &&
+        status.replicas != (has(status.updatedReplicas) ? status.updatedReplicas : 0)
+      current: >-
+        spec.replicas == 0 ||
+        (has(status.availableReplicas) && has(status.replicas) &&
+         status.availableReplicas == status.replicas)
   interval: 1h
   path: ./kubernetes/apps/actions/forgejo-runner/app
   postBuild:
