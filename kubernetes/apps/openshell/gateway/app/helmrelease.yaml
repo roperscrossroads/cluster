@@ -13,16 +13,35 @@ spec:
         kind: HelmRepository
         name: openshell
       interval: 1h
+  # Values follow the 0.1.x chart schema (rewritten for 0.1.7; the 0.0.x keys
+  # image:, server.sandboxImage, supervisor.sideloadMethod are gone).
   values:
-    image:
-      repository: ghcr.io/nvidia/openshell/gateway
-      tag: "0.1.7"
-      pullPolicy: IfNotPresent
+    # 0.1.x values schema. Images keep full repository paths (Renovate tracks the
+    # repository+tag pairs), so the chart's ghcr.io/nvidia global registry prefix is
+    # cleared to avoid ghcr.io/nvidia/ghcr.io/nvidia/... references.
+    global:
+      image:
+        registry: ""
+        pullPolicy: IfNotPresent
+    gateway:
+      image:
+        repository: ghcr.io/nvidia/openshell/gateway
+        tag: "0.1.7"
     supervisor:
       image:
         repository: ghcr.io/nvidia/openshell/supervisor
         tag: "0.1.7"
-      sideloadMethod: "image-volume"      # k8s 1.36 ⇒ ImageVolume GA (verified on cluster)
+    sandboxRuntime:
+      image:
+        repository: ghcr.io/nvidia/openshell/sandbox
+        tag: "0.1.7"
+    # Default sandbox image (was server.sandboxImage); keep the community base image
+    # rather than the chart's new nvcr.io ubuntu default.
+    sandbox:
+      image:
+        repository: ghcr.io/nvidia/openshell-community/sandboxes/base
+        tag: latest
+        pullPolicy: IfNotPresent
     # --- TLS + JWT: self-contained self-signed pkiInitJob (internal mTLS control plane) ---
     pkiInitJob:
       enabled: true
@@ -32,21 +51,20 @@ spec:
       dbUrl: "sqlite:/var/openshell/openshell.db"   # gateway PVC (1Gi, cluster-default SC)
       logLevel: info
       disableTls: false
-      # --- Auth (milestone 1): transport mTLS stays on (the server always terminates mTLS),
-      # so only holders of the pki-minted client cert can connect — effectively single-operator.
-      # We skip per-user identity here; OIDC (Authelia) is a follow-up milestone. ---
+      # Transport mTLS stays on; per-user identity (OIDC via Authelia) is a follow-up.
       auth:
         allowUnauthenticatedUsers: true
       # --- Kubernetes sandbox driver ---
       sandboxNamespace: openshell-sandboxes
       enableUserNamespaces: true                     # confirmed working on Talos
-      sandboxImage: "ghcr.io/nvidia/openshell-community/sandboxes/base:latest"
-      sandboxImagePullPolicy: IfNotPresent
       workspaceDefaultStorageSize: "10Gi"
-      # grpcEndpoint empty → auto: https://openshell.openshell.svc.cluster.local:8080
+      # Pull secret for BYOC sandbox images on the internal registry (replaces the
+      # 0.0.x postRenderer patch on the sandbox ServiceAccount).
+      sandboxImagePullSecrets:
+        - name: internal-registry-auth
     grpcRoute:
-      enabled: false                                 # M1: port-forward; GRPCRoute deferred
-    # --- gateway pinned to the dedicated sandbox node via label + toleration ---
+      enabled: false                                 # port-forward only; GRPCRoute deferred
+    # --- gateway pinned to the sandbox node via label + toleration ---
     nodeSelector:
       openshell.io/sandboxes: "true"
     tolerations:
@@ -60,20 +78,3 @@ spec:
         memory: "256Mi"
       limits:
         memory: "512Mi"
-  # Attach the internal-Zot pull secret to the chart-managed sandbox SA so BYOC
-  # sandbox pods (e.g. Hermes, Phase B) can pull from the auth-required registry.
-  # The chart exposes no sandbox-SA imagePullSecret value and the SA is Helm-managed,
-  # so we inject it via a postRenderer (same pattern as the dagu HelmRelease).
-  postRenderers:
-    - kustomize:
-        patches:
-          - target:
-              version: v1
-              kind: ServiceAccount
-              name: openshell-sandbox
-              namespace: openshell-sandboxes
-            patch: |
-              - op: add
-                path: /imagePullSecrets
-                value:
-                  - name: internal-registry-auth
