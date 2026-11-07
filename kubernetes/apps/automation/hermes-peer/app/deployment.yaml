@@ -93,7 +93,7 @@ spec:
           resources:
             requests:
               cpu: "100m"
-              memory: "512Mi"
+              memory: "192Mi"   # 7-day peak ~57Mi (2026-11-07); limit unchanged
             limits:
               memory: "2Gi"
         # ---- a2a-shim sidecar (A2A peer surface on :9400) ----
