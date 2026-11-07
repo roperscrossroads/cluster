@@ -13,7 +13,12 @@ spec:
         kind: HelmRepository
         name: ollama
   values:
-    replicaCount: 1
+    # Scaled to 0 on 2026-11-07: LiteLLM's `embed-m3-cluster` (the cluster-side
+    # fallback for `embed-m3` when LM Studio is offline) had zero requests in 30
+    # days, and the pod reserved 4Gi on the tightest node. The model PVC stays,
+    # so set this back to 1 when memtech / an embedding consumer returns (or
+    # put it behind KEDA HTTP scale-to-zero).
+    replicaCount: 0
 
     image:
       repository: ollama/ollama
