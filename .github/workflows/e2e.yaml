@@ -96,7 +96,7 @@ jobs:
           just talos generate-config
 
       - name: Install flate
-        uses: home-operations/flate/action@0fc37fae10cf3c265294f6adebc6d6c100c74ea5 # v0.4.10
+        uses: home-operations/flate/action@631b76b69c4e58c6f4d1cb01e23616fa61aebafa # v0.6.5
         with:
           base: ""
 
