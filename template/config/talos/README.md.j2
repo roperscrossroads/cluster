@@ -48,8 +48,9 @@ The patches use the Talos 1.14 multi-document forms (`UnattendedInstallConfig`,
   `true` (sandboxd); upgraded nodes keep the old behaviour, and so do we until chosen.
 - **Anonymous auth stays off** (`KubeAuthenticationConfig`), as with `--anonymous-auth=false`.
 - **Etcd encryption:** the generated `KubeEtcdEncryptionConfig` lists `secretbox` only;
-  the pre-1.14 path also appended an `identity` read fallback. Decide before the first
-  `topf apply` on 1.14 (see agents-9cmz).
+  the pre-1.14 path also appended an `identity` read fallback. Accepted (2026-11-08): secrets
+  have been secretbox-encrypted since bootstrap. Check after the first apply: listing all
+  secrets through that node's API server must succeed.
 
 topf renders against each node's *running* version for `apply`/`upgrade`/`diff`, so these
 patches only work once a node runs 1.14. The 1.13 → 1.14 hop therefore upgrades nodes with
