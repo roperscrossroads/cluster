@@ -89,11 +89,8 @@ jobs:
       - name: Run configure recipe
         run: just configure
 
-      - name: Run generate talconfig recipe
-        run: |
-          FILENAME=talos/talsecret.sops.yaml
-          talhelper gensecret | sops --filename-override $FILENAME --encrypt /dev/stdin > $FILENAME
-          just talos generate-config
+      - name: Render talos configs
+        run: just talos render
 
       - name: Install flate
         uses: home-operations/flate/action@631b76b69c4e58c6f4d1cb01e23616fa61aebafa # v0.6.5

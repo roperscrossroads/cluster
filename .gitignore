@@ -21,6 +21,8 @@ Thumbs.db
 # Rendered Talos node configs (plaintext PKI). Excluded at root level in
 # addition to the per-folder .gitignore inside talos/clusterconfig/.
 /talos/clusterconfig/
+# topf render output (plaintext PKI)
+/talos/rendered/
 
 # Local pre-commit cache
 .pre-commit-cache/

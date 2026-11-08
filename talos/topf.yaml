@@ -1,0 +1,55 @@
+---
+# Talos machine configs for the mini-cluster, assembled by topf
+# (https://postfinance.github.io/topf/) from this file plus the strategic-merge
+# patches in all/, control-plane/, worker/ and node/<host>/ (merged in that
+# order, lexicographically within each directory). See README.md.
+clusterName: kubernetes
+clusterEndpoint: https://172.16.21.100:6443
+
+# Keep talosVersion in step with the nodes: topf renders the machine-config
+# contract for this version and builds the installer image from it.
+# renovate: datasource=docker depName=ghcr.io/siderolabs/installer-base
+talosVersion: v1.13.12
+# renovate: datasource=docker depName=ghcr.io/siderolabs/kubelet
+kubernetesVersion: v1.36.4
+
+# Talos secrets bundle (sops, whole-file).
+secretsPath: secrets.sops.yaml
+
+nodes:
+  - host: "talos-1"
+    ip: "172.16.21.21"
+    role: control-plane
+    schematicId: "e3fab82b561b5e559cdf1c0b1e5950c0e52700b9208a2cfaa5b18454796f3a7e"
+    data:
+      installDisk: "/dev/sda"
+      installDiskSerial: ""
+      installer: "installer"
+      macAddr: "bc:24:11:21:00:01"
+      mtu: 1500
+      encryptDisk: false
+      kernelModules: []
+  - host: "talos-2"
+    ip: "172.16.21.22"
+    role: control-plane
+    schematicId: "e3fab82b561b5e559cdf1c0b1e5950c0e52700b9208a2cfaa5b18454796f3a7e"
+    data:
+      installDisk: "/dev/sda"
+      installDiskSerial: ""
+      installer: "installer"
+      macAddr: "bc:24:11:21:00:02"
+      mtu: 1500
+      encryptDisk: false
+      kernelModules: []
+  - host: "talos-3"
+    ip: "172.16.21.23"
+    role: control-plane
+    schematicId: "e3fab82b561b5e559cdf1c0b1e5950c0e52700b9208a2cfaa5b18454796f3a7e"
+    data:
+      installDisk: "/dev/sda"
+      installDiskSerial: ""
+      installer: "installer"
+      macAddr: "bc:24:11:21:00:03"
+      mtu: 1500
+      encryptDisk: false
+      kernelModules: []

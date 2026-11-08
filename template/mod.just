@@ -135,7 +135,15 @@ validate-kubernetes:
     bash "{{ template_resources }}/kubeconform.sh" "{{ kubernetes_dir }}"
 
 [private]
+[script]
 [working-directory('talos')]
 validate-talos:
-    test -f talconfig.yaml
-    talhelper validate talconfig talconfig.yaml
+    test -f topf.yaml
+    # Renders every node config (generating secrets.sops.yaml on a fresh
+    # template); fails on a bad patch or template. The output holds plaintext
+    # PKI, so it is shredded on exit.
+    out="$(mktemp -d)"
+    trap 'find "$out" -type f -exec shred -u {} +; rmdir "$out"' EXIT
+    topf render --confirm=false --output "$out" >/dev/null
+    sops filestatus secrets.sops.yaml | jq --exit-status '.encrypted == true' >/dev/null \
+        || { just log error "Talos secrets bundle is not encrypted"; exit 1; }

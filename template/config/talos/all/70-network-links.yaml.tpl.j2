@@ -1,0 +1,44 @@
+# Node networking as typed documents: the NIC is matched by MAC, static address,
+# default route; control planes share the API VIP on it.
+apiVersion: v1alpha1
+kind: LinkAliasConfig
+name: ethSel0
+selector:
+  match: glob("{{ .Node.Data.macAddr }}", mac(link.hardware_addr))
+#% if network.vlan_tag %#
+---
+apiVersion: v1alpha1
+kind: VLANConfig
+name: ethSel0.#{ network.vlan_tag }#
+parent: ethSel0
+vlanID: #{ network.vlan_tag }#
+mtu: {{ .Node.Data.mtu }}
+addresses:
+  - address: "{{ .Node.IP }}/#{ network.node_cidr.split('/') | last }#"
+routes:
+  - gateway: "#{ network.default_gateway }#"
+{{- if eq .Node.Role "control-plane" }}
+---
+apiVersion: v1alpha1
+kind: Layer2VIPConfig
+name: "#{ kubernetes.api.addr }#"
+link: ethSel0.#{ network.vlan_tag }#
+{{- end }}
+#% else %#
+{{- if eq .Node.Role "control-plane" }}
+---
+apiVersion: v1alpha1
+kind: Layer2VIPConfig
+name: "#{ kubernetes.api.addr }#"
+link: ethSel0
+{{- end }}
+---
+apiVersion: v1alpha1
+kind: LinkConfig
+name: ethSel0
+mtu: {{ .Node.Data.mtu }}
+addresses:
+  - address: "{{ .Node.IP }}/#{ network.node_cidr.split('/') | last }#"
+routes:
+  - gateway: "#{ network.default_gateway }#"
+#% endif %#

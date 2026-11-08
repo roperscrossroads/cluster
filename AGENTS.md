@@ -197,7 +197,7 @@ Surface area this repo owns:
 - **Container images** those charts (and our raw `Deployment`s) pull —
   e.g. forgejo-runner pod, custom MCP / agent images.
 - **Cluster bootstrap binaries** pulled by `just bootstrap` and by
-  `mise` on the workstation (talos, talhelper, flux, kubectl, helm,
+  `mise` on the workstation (talos, topf, flux, kubectl, helm,
   cilium-cli).
 - **Sigstore / cosign signatures** on Flux artifacts themselves (Flux
   publishes signed manifests; we don't verify them today).
