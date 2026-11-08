@@ -15,25 +15,22 @@ default:
 apps: apps-wait-nodes apps-namespaces apps-secrets apps-crds apps-helm
     just log info "Cluster is bootstrapped — Flux will start syncing the Git repository"
 
-[doc('Bootstrap the Talos cluster (gensecret, genconfig, apply, bootstrap, kubeconfig)')]
+[doc('Bootstrap the Talos cluster (secrets, apply + etcd bootstrap, talosconfig, kubeconfig)')]
 [group('bootstrap')]
 [script]
 [working-directory('../talos')]
 talos:
-    if [ ! -f talsecret.sops.yaml ]; then
-        just log info "Generating talsecret"
-        talhelper gensecret \
-            | sops --filename-override talos/talsecret.sops.yaml --encrypt /dev/stdin \
-            > talsecret.sops.yaml
-    fi
-    just log info "Generating talos config"
-    talhelper genconfig
-    just log info "Applying talos config"
-    talhelper gencommand apply --extra-flags="--insecure" | bash
-    just log info "Bootstrapping talos"
-    until talhelper gencommand bootstrap | bash; do sleep 10; done
+    # topf stores a new secrets bundle sops-encrypted next to topf.yaml and
+    # leaves an existing one untouched.
+    just log info "Generating secrets"
+    topf secrets --confirm=false > /dev/null
+    just log info "Applying talos config and bootstrapping"
+    topf apply --auto-bootstrap --confirm=false
+    just log info "Generating talosconfig"
+    topf talosconfig > talosconfig
     just log info "Fetching kubeconfig"
-    until talhelper gencommand kubeconfig --extra-flags="{{ justfile_dir() }} --force" | bash; do sleep 10; done
+    # topf issues short-lived admin certs by default; 8760h keeps it usable.
+    topf kubeconfig --validity 8760h > "{{ justfile_dir() }}/kubeconfig"
 
 [private]
 [script]

@@ -1,0 +1,11 @@
+machine:
+  registries:
+    mirrors:
+      # Internal Zot registry — HTTP only on this VLAN. Auth is handled
+      # at the k8s level via imagePullSecret rather than here, because
+      # containerd ignores `registry.configs.auth` when hosts.toml is
+      # written via the mirrors block (Talos issue: hosts.toml takes
+      # precedence and doesn't carry the auth keys from registry.configs).
+      "registry.home.arpa:8080":
+        endpoints:
+          - "http://registry.home.arpa:8080"
