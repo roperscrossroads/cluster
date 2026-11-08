@@ -136,12 +136,14 @@
       // (Separate rule: Renovate forbids separateMinorPatch together with
       // matchUpdateTypes.)
       description: "Talos: separate minor and patch",
-      matchDepNames: ["ghcr.io/siderolabs/installer", "aqua:siderolabs/talos"],
+      matchDepNames: ["ghcr.io/siderolabs/installer-base", "aqua:siderolabs/talos"],
       separateMinorPatch: true,
     },
     {
-      // talosctl (mise) must match the version the nodes run (installer image
-      // in talenv.yaml). One reviewed PR for both, never a silent auto-merge
+      // talosctl (mise) must match the version the nodes run (talosVersion in
+      // talos/topf.yaml, tracked as installer-base because
+      // ghcr.io/siderolabs/installer is not published from Talos 1.14).
+      // One reviewed PR for both, never a silent auto-merge
       // of talosctl ahead of the nodes.
       // Split by update type: a single group took the newest of each and
       // paired talosctl 1.14.5 with installer 1.13.12 (PR #96). Patch and
@@ -149,7 +151,7 @@
       // to the same version.
       description: "Talos Group (patch)",
       groupName: "talos",
-      matchDepNames: ["ghcr.io/siderolabs/installer", "aqua:siderolabs/talos"],
+      matchDepNames: ["ghcr.io/siderolabs/installer-base", "aqua:siderolabs/talos"],
       matchUpdateTypes: ["patch"],
       automerge: false,
       group: {
@@ -161,7 +163,7 @@
       // merge-and-forget; Kubernetes minors depend on it.
       description: "Talos Group (minor/major)",
       groupName: "talos-minor",
-      matchDepNames: ["ghcr.io/siderolabs/installer", "aqua:siderolabs/talos"],
+      matchDepNames: ["ghcr.io/siderolabs/installer-base", "aqua:siderolabs/talos"],
       matchUpdateTypes: ["minor", "major"],
       automerge: false,
       group: {
