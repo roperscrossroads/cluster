@@ -76,6 +76,10 @@ node_names() { local n; for n in "${NODES[@]}"; do echo "${n%%:*}"; done; }
 b64_fp() { base64 -d | openssl x509 -noout -fingerprint -sha256 | cut -d= -f2 | tr -d : | cut -c1-16; }
 b64_ski() { base64 -d | openssl x509 -noout -ext subjectKeyIdentifier | tail -1 | tr -d ' :'; }
 sha12() { sha256sum | cut -c1-12; }
+# stdin: base64(PEM) private key -> hash of its public key. Talos labels ED25519 keys
+# "ED25519 PRIVATE KEY" (PKCS#8 inside); openssl only reads the standard label.
+b64_key_pub() { { base64 -d | sed -E 's/-----(BEGIN|END) ED25519 PRIVATE KEY-----/-----\1 PRIVATE KEY-----/' |
+  openssl pkey -pubout 2>/dev/null || echo unreadable; } | sha12; }
 
 bundle_os_crt() { sops -d "$BUNDLE" | yq '.certs.os.crt'; }
 old_os_crt() { sops -d "$RUN/secrets.before.sops.yaml" | yq '.certs.os.crt'; }
@@ -173,15 +177,19 @@ cmd_prep() {
 
 cmd_generate() {
   header generate; need prep
-  [[ ! -f "$RUN/new.sops.yaml" ]] || die "new material already generated"
-  talosctl gen secrets -o - 2>/dev/null | yq '{"os": .certs.os, "token": .trustdinfo.token}' |
-    sops encrypt --filename-override "$RUN/new.sops.yaml" --input-type yaml --output-type yaml /dev/stdin >"$RUN/new.sops.yaml"
+  if [[ -f "$RUN/new.sops.yaml" ]]; then
+    [[ "$(state_get generate)" != verified ]] || die "new material already generated and verified"
+    info "re-checking the new material staged by an earlier run (not regenerating)"
+  else
+    talosctl gen secrets -o - 2>/dev/null | yq '{"os": .certs.os, "token": .trustdinfo.token}' |
+      sops encrypt --filename-override "$RUN/new.sops.yaml" --input-type yaml --output-type yaml /dev/stdin >"$RUN/new.sops.yaml"
+  fi
   local text; text=$(new_os_crt | base64 -d | openssl x509 -noout -text)
   grep -q 'CA:TRUE' <<<"$text" && ok "new CA: basicConstraints CA:TRUE" || bad "new CA is not a CA"
   grep -q 'ED25519' <<<"$text" && ok "new CA: ED25519" || bad "new CA not ED25519"
   [[ "$(new_os_crt | base64 -d | openssl x509 -noout -subject)" == "subject=O = talos" ]] && ok "new CA: subject O=talos" || bad "new CA subject unexpected"
   new_os_crt | base64 -d | openssl x509 -noout -checkend $((9*365*86400)) >/dev/null && ok "new CA: valid > 9 years ($(new_os_crt | base64 -d | openssl x509 -noout -enddate))" || bad "new CA validity too short"
-  local kpub cpub; kpub=$(sops -d "$RUN/new.sops.yaml" | yq '.os.key' | base64 -d | openssl pkey -pubout | sha12)
+  local kpub cpub; kpub=$(sops -d "$RUN/new.sops.yaml" | yq '.os.key' | b64_key_pub)
   cpub=$(new_os_crt | base64 -d | openssl x509 -noout -pubkey | sha12)
   [[ "$kpub" == "$cpub" ]] && ok "new CA: private key matches certificate" || bad "new CA key/cert mismatch"
   [[ "$(new_os_crt | b64_fp)" != "$(old_os_crt | b64_fp)" ]] && ok "new CA differs from old" || bad "new CA equals old"
@@ -223,7 +231,7 @@ cmd_swap_bundle() {
   sops -d --filename-override "$BUNDLE" "$TMP/bundle.enc" >/dev/null && cp "$TMP/bundle.enc" "$BUNDLE" || die "new bundle does not decrypt; bundle untouched"
   [[ "$(bundle_os_crt | b64_fp)" == "$(new_os_crt | b64_fp)" ]] && ok "bundle certs.os = new CA" || bad "bundle certs.os not the new CA"
   [[ "$(sops -d "$BUNDLE" | yq 'del(.certs.os)' | sha12)" == "$before" ]] && ok "every other bundle field unchanged" || bad "other bundle fields changed"
-  [[ "$(sops -d "$BUNDLE" | yq '.certs.os.key' | base64 -d | openssl pkey -pubout | sha12)" == "$(bundle_os_crt | base64 -d | openssl x509 -noout -pubkey | sha12)" ]] && ok "bundle key matches bundle cert" || bad "bundle key/cert mismatch"
+  [[ "$(sops -d "$BUNDLE" | yq '.certs.os.key' | b64_key_pub)" == "$(bundle_os_crt | base64 -d | openssl x509 -noout -pubkey | sha12)" ]] && ok "bundle key matches bundle cert" || bad "bundle key/cert mismatch"
   write_patch "$(old_os_crt)"; info "rewrote $(basename "$PATCH") (acceptedCAs = old CA); commit bundle + patch with this step"
   topf talosconfig >"$RUN/talosconfig.new"
   tc_with_trust "$RUN/talosconfig.new" "$RUN/talosconfig.dual" "$(new_os_crt)" "$(old_os_crt)"
