@@ -46,7 +46,11 @@ The patches use the Talos 1.14 multi-document forms (`UnattendedInstallConfig`,
   local-path-provisioner bind mount would vanish. The generated `KubeletConfig` is deleted.
 - **`SecurityProfileConfig.workloadIsolation: false`**: the 1.14 default for new configs is
   `true` (sandboxd); upgraded nodes keep the old behaviour, and so do we until chosen.
-- **Anonymous auth stays off** (`KubeAuthenticationConfig`), as with `--anonymous-auth=false`.
+- **Anonymous auth: Talos default (health endpoints only).** The 1.14 `KubeAuthenticationConfig`
+  default allows anonymous requests to `/livez`, `/readyz` and `/healthz` only. Keep it: the
+  1.14 kube-apiserver static pod gains startup/liveness/readiness probes, and the kubelet sends
+  them unauthenticated. Pinning `anonymous.enabled: false` (as `--anonymous-auth=false` did on
+  1.13, which had no probes) makes every probe 401 and the API server crash-loops (2026-11-08).
 - **Etcd encryption:** the generated `KubeEtcdEncryptionConfig` lists `secretbox` only;
   the pre-1.14 path also appended an `identity` read fallback. Accepted (2026-11-08): secrets
   have been secretbox-encrypted since bootstrap. Check after the first apply: listing all

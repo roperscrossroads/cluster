@@ -1,9 +1,0 @@
-# Keep anonymous auth fully off, as on Talos <= 1.13 (--anonymous-auth=false);
-# the 1.14 default allows anonymous /livez, /readyz and /healthz.
-apiVersion: v1alpha1
-kind: KubeAuthenticationConfig
-configuration:
-  anonymous:
-    enabled: false
-    conditions:
-      $patch: delete
