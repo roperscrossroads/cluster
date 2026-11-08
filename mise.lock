@@ -837,9 +837,9 @@ backend = "pipx:makejinja"
 specifiers = ["2.9.1"]
 
 [[tools."pipx:pre-commit"]]
-version = "4.0.1"
+version = "4.7.0"
 backend = "pipx:pre-commit"
-specifiers = ["4.0.1"]
+specifiers = ["4.7.0"]
 
 [[tools.python]]
 version = "3.13.7"
