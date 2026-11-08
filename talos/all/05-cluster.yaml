@@ -2,10 +2,14 @@ machine:
   certSANs:
     - "127.0.0.1"
     - "172.16.21.100"
-cluster:
-  network:
-    # Built-in CNI disabled: Cilium is the CNI (kube-proxy replacement too).
-    cni:
-      name: none
-    podSubnets: ["10.42.0.0/16"]
-    serviceSubnets: ["10.43.0.0/16"]
+---
+apiVersion: v1alpha1
+kind: KubeNetworkConfig
+podSubnets: ["10.42.0.0/16"]
+serviceSubnets: ["10.43.0.0/16"]
+---
+# Keep the runtime plane un-sandboxed (the 1.14 default for new configs is true;
+# upgraded nodes keep false). Revisit deliberately: see the 1.14 notes on sandboxd.
+apiVersion: v1alpha1
+kind: SecurityProfileConfig
+workloadIsolation: false

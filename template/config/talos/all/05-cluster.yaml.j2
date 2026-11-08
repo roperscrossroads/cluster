@@ -5,10 +5,14 @@ machine:
     #% for item in kubernetes.api.tls_sans %#
     - "#{ item }#"
     #% endfor %#
-cluster:
-  network:
-    # Built-in CNI disabled: Cilium is the CNI (kube-proxy replacement too).
-    cni:
-      name: none
-    podSubnets: ["#{ kubernetes.pod_cidr }#"]
-    serviceSubnets: ["#{ kubernetes.svc_cidr }#"]
+---
+apiVersion: v1alpha1
+kind: KubeNetworkConfig
+podSubnets: ["#{ kubernetes.pod_cidr }#"]
+serviceSubnets: ["#{ kubernetes.svc_cidr }#"]
+---
+# Keep the runtime plane un-sandboxed (the 1.14 default for new configs is true;
+# upgraded nodes keep false). Revisit deliberately: see the 1.14 notes on sandboxd.
+apiVersion: v1alpha1
+kind: SecurityProfileConfig
+workloadIsolation: false

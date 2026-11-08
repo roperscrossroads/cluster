@@ -35,3 +35,23 @@ every node).
 
 topf asks before every change; pass `--confirm=false` for non-interactive runs.
 Runbook: `~/notes/local/infra/mini-cluster/runbooks/node-reboot.md` §5.
+
+## Talos 1.14 config forms (2026-11)
+
+The patches use the Talos 1.14 multi-document forms (`UnattendedInstallConfig`,
+`KubeAPIServerConfig`, `KubeNodeConfig`, `ResolverConfig`, …). Deliberate exceptions and pins:
+
+- **Kubelet stays in `.machine.kubelet`** (deprecated v1alpha1). The 1.14 `KubeletConfig`
+  document has no `extraMounts`, and the kubelet still runs as a container, so the
+  local-path-provisioner bind mount would vanish. The generated `KubeletConfig` is deleted.
+- **`SecurityProfileConfig.workloadIsolation: false`**: the 1.14 default for new configs is
+  `true` (sandboxd); upgraded nodes keep the old behaviour, and so do we until chosen.
+- **Anonymous auth stays off** (`KubeAuthenticationConfig`), as with `--anonymous-auth=false`.
+- **Etcd encryption:** the generated `KubeEtcdEncryptionConfig` lists `secretbox` only;
+  the pre-1.14 path also appended an `identity` read fallback. Decide before the first
+  `topf apply` on 1.14 (see agents-9cmz).
+
+topf renders against each node's *running* version for `apply`/`upgrade`/`diff`, so these
+patches only work once a node runs 1.14. The 1.13 → 1.14 hop therefore upgrades nodes with
+plain `talosctl upgrade --image` (stored configs stay valid on 1.14), then applies the new
+forms with topf. Runbook: `node-reboot.md` §5.

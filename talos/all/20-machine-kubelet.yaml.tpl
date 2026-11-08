@@ -1,0 +1,27 @@
+# Kubelet stays in the (deprecated) v1alpha1 .machine.kubelet form on purpose:
+# the 1.14 KubeletConfig document has no extraMounts (it always returns none),
+# and the kubelet still runs as a container, so local-path-provisioner's
+# hostPath must be bind-mounted in or its data is orphaned on a kubelet
+# restart (see storage-system notes). The generated KubeletConfig is removed.
+machine:
+  kubelet:
+    image: "ghcr.io/siderolabs/kubelet:{{ .KubernetesVersion }}"
+    defaultRuntimeSeccompProfileEnabled: true
+    disableManifestsDirectory: true
+    extraConfig:
+      serializeImagePulls: false
+    extraMounts:
+      - destination: /var/local-path-provisioner
+        type: bind
+        source: /var/local-path-provisioner
+        options: [bind, rshared, rw]
+---
+apiVersion: v1alpha1
+kind: KubeletConfig
+$patch: delete
+---
+apiVersion: v1alpha1
+kind: KubeNodeConfig
+nodeIP:
+  validSubnets:
+    - 172.16.21.0/24
