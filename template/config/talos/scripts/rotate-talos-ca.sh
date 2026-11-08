@@ -140,6 +140,10 @@ cmd_status() {
 }
 
 cmd_prep() {
+  if [[ -e "$RUN" && "$(cat "$RUN/state" 2>/dev/null)" == "prep=failed" ]]; then
+    local prev; prev=$(readlink -f "$RUN"); mv "$prev" "$prev.failed"; rm -f "$RUN"
+    echo "kept the failed prep run as $(basename "$prev").failed"
+  fi
   [[ ! -e "$RUN" ]] || die "a rotation run already exists at $(readlink -f "$RUN"); finish or move it first"
   local id; id="talos-api-ca-$(date -u +%Y%m%d-%H%M)"
   mkdir -p "$ROT_DIR/$id"; ln -sfn "$id" "$RUN"; touch "$RUN/state"
@@ -161,7 +165,8 @@ cmd_prep() {
   cp "$BUNDLE" "$RUN/secrets.before.sops.yaml"
   sops -d "$RUN/secrets.before.sops.yaml" | sha12 >/dev/null && ok "backup: bundle copied (still sops-encrypted) and decrypts" || bad "bundle backup does not decrypt"
   sops encrypt --filename-override "$RUN/talosconfig.old.sops.yaml" --input-type yaml --output-type yaml "$CURRENT_TC" >"$RUN/talosconfig.old.sops.yaml"
-  [[ "$(sops -d "$RUN/talosconfig.old.sops.yaml" | sha12)" == "$(sha12 <"$CURRENT_TC")" ]] && ok "backup: talosconfig encrypted, round-trips" || bad "talosconfig backup mismatch"
+  # Compare parsed content: sops re-indents YAML, so raw bytes never match.
+  [[ "$(sops -d "$RUN/talosconfig.old.sops.yaml" | yq -o json -I0 'sort_keys(..)' | sha12)" == "$(yq -o json -I0 'sort_keys(..)' "$CURRENT_TC" | sha12)" ]] && ok "backup: talosconfig encrypted, round-trips" || bad "talosconfig backup mismatch"
   info "old token hash: $(sops -d "$BUNDLE" | yq '.trustdinfo.token' | sha12)"
   finish_step prep
 }
