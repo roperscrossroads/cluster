@@ -882,9 +882,9 @@ url = "https://github.com/astral-sh/python-build-standalone/releases/download/20
 provenance = "github-attestations"
 
 [[tools."ubi:cue-lang/cue"]]
-version = "0.16.1"
+version = "0.17.1"
 backend = "ubi:cue-lang/cue"
-specifiers = ["0.16.1"]
+specifiers = ["0.17.1"]
 
 [[tools.uv]]
 version = "0.11.29"
