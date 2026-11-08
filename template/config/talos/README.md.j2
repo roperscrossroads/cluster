@@ -32,6 +32,7 @@ every node).
 | `upgrade-node <host>` | Talos upgrade of one node to `talosVersion` (drain, reboot, uncordon) |
 | `upgrade-k8s` | Kubernetes to `kubernetesVersion` via `talosctl upgrade-k8s` |
 | `talosconfig` | regenerate `talos/talosconfig` (`TALOSCONFIG` points here via mise) |
+| `rotate <step> [node]` | Talos API CA + machine token rotation, one checked step at a time; log and encrypted backups in `rotation/` (gitignored). `rotate status` shows progress |
 
 topf asks before every change; pass `--confirm=false` for non-interactive runs.
 Runbook: `~/notes/local/infra/mini-cluster/runbooks/node-reboot.md` §5.
