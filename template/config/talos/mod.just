@@ -63,3 +63,8 @@ upgrade-k8s *args:
 [group('talos')]
 upgrade-node node *args:
     topf upgrade --nodes-filter '^{{ node }}$' --drain-timeout 10m {{ args }}
+
+[doc('Talos API CA + machine token rotation, one checked step at a time')]
+[group('talos')]
+rotate step='status' *args:
+    scripts/rotate-talos-ca.sh {{ step }} {{ args }}

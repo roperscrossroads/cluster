@@ -23,6 +23,7 @@ Thumbs.db
 /talos/clusterconfig/
 # topf render output (plaintext PKI)
 /talos/rendered/
+/talos/rotation/
 
 # Local pre-commit cache
 .pre-commit-cache/
