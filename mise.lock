@@ -617,7 +617,7 @@ checksum = "sha256:1691938f7de0e931969f9968c3601cf32d6b0d573573afb4ce471f3d28f51
 url = "https://dl.k8s.io/v1.37.2/bin/windows/amd64/kubectl.exe"
 
 [[tools."aqua:mikefarah/yq"]]
-version = "4.54.2"
+version = "4.54.3"
 backend = "aqua:mikefarah/yq"
 specifiers = ["4.54.2"]
 
