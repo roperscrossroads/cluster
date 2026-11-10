@@ -41,10 +41,36 @@ spec:
     # container / no userns — the same model as crane, which already runs
     # clean under this hardened posture. So no relaxed securityContext is
     # needed here. (melange, the privileged package-compiler, is out of scope.)
+    # The always-on listener that holds the job queue connection to GitHub.
+    # Uses ~10Mi; the request keeps it counted by the scheduler.
+    listenerTemplate:
+      spec:
+        containers:
+          - name: listener
+            resources:
+              requests: { cpu: 10m, memory: 32Mi }
+              limits: { memory: 128Mi }
+
     template:
       spec:
         serviceAccountName: arc-runner-set-rxr-images
+        # Runners never preempt services and are evicted first under node
+        # memory pressure (see the ci-runner PriorityClass in arc-controller).
+        priorityClassName: ci-runner
         containers:
           - name: runner
-            image: ghcr.io/actions/actions-runner:latest
+            # Tag + digest: the digest fixes the image, the tag lets Renovate
+            # propose bumps. GitHub refuses jobs to runners too far behind the
+            # latest release, so merge runner bumps promptly.
+            image: ghcr.io/actions/actions-runner:2.338.2@sha256:759a1d94a15b05941aba5196974ff43fe15b4cbba29b694b35cbc32a1166b232
             command: ["/home/runner/run.sh"]
+            # Sized from 30 days of runs (images builds peak ~690Mi, ~0.3 core).
+            # The request is what the scheduler reserves, so a burst of jobs
+            # queues as Pending instead of piling onto one node. No CPU limit:
+            # CPU is shared by request weight under contention, and a limit
+            # would only throttle builds while cores sit idle. Ephemeral storage
+            # is the node's shared working disk; the limit stops one build
+            # filling it.
+            resources:
+              requests: { cpu: 250m, memory: 768Mi, ephemeral-storage: 2Gi }
+              limits: { memory: 2Gi, ephemeral-storage: 10Gi }
