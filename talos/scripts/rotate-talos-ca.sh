@@ -364,7 +364,7 @@ cmd_cleanup() {
   header cleanup; need finish
   rm -f "$RUN/secrets.before.sops.yaml" "$RUN/talosconfig.old.sops.yaml" "$RUN/new.sops.yaml"
   ok "removed the encrypted backups (old CA key is dead; new material lives in the bundle)"
-  local id; id=$(basename "$(readlink -f "$RUN")"); rm "$RUN"; log "- run $id closed; log kept at rotation/$id/log.md"
+  local id; id=$(basename "$(readlink -f "$RUN")"); log "- run $id closed; log kept at rotation/$id/log.md"; rm "$RUN"
 }
 
 cmd_check() { # re-run a step's checks without changing anything
