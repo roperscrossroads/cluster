@@ -95,6 +95,21 @@
       ignoreTests: true,
     },
     {
+      // The ARC runner image is pinned by tag + digest (arc-runner-set-*).
+      // GitHub stops sending jobs to runners that fall too far behind the
+      // latest release, so bumps must not wait for a manual merge. Branch
+      // automerge like the mise tools (Flate runs on PRs only); the 3-day
+      // release age is the supply-chain buffer.
+      description: "Auto-merge the ARC runner image",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["ghcr.io/actions/actions-runner"],
+      automerge: true,
+      automergeType: "branch",
+      matchUpdateTypes: ["minor", "patch", "digest"],
+      minimumReleaseAge: "3 days",
+      ignoreTests: true,
+    },
+    {
       // Overrides the automerge above for anything living under
       // .github/workflows/ — CI definitions are the highest-leverage
       // supply-chain target in this repo (see AGENTS.md "Security posture"),
