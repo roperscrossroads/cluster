@@ -45,6 +45,9 @@ spec:
     # Uses ~10Mi; the request keeps it counted by the scheduler.
     listenerTemplate:
       spec:
+        # Same CI nodes as the runners (label set in the Talos config).
+        nodeSelector:
+          rxr.lab/ci: "true"
         containers:
           - name: listener
             resources:
@@ -54,6 +57,10 @@ spec:
     template:
       spec:
         serviceAccountName: arc-runner-set-rxr-images
+        # Only nodes labelled for CI (talos/topf.yaml nodeLabels): keeps builds
+        # off talos-1, the smallest node, which carries the API server and etcd.
+        nodeSelector:
+          rxr.lab/ci: "true"
         # Runners never preempt services and are evicted first under node
         # memory pressure (see the ci-runner PriorityClass in arc-controller).
         priorityClassName: ci-runner
