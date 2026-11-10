@@ -1,0 +1,17 @@
+---
+# Priority for the ARC runner pods (all runner sets). Runners never preempt
+# other pods, and the kubelet evicts them first when a node runs low on
+# memory: a build is re-runnable, a service outage is not. Kept separate from
+# Immich's low-priority-preemptible so each can change on its own.
+# Cluster-scoped; lives here because every runner set dependsOn arc-controller,
+# so it exists before any runner pod references it.
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: ci-runner
+value: -100
+globalDefault: false
+preemptionPolicy: Never
+description: >-
+  GitHub Actions runner pods. Never preempt other pods; evicted first under
+  node memory pressure.
