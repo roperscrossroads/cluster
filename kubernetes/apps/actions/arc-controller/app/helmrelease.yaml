@@ -15,5 +15,12 @@ spec:
   values:
     # Single replica is fine for our scale; bump + leader-elect later if needed.
     replicaCount: 1
+    # Same CI nodes as the runners and listeners (label set in the Talos
+    # config): keeps CI pods off talos-1. Live use ~33Mi.
+    nodeSelector:
+      rxr.lab/ci: "true"
+    resources:
+      requests: { cpu: 10m, memory: 64Mi }
+      limits: { memory: 256Mi }
     # Listener pods are created by the controller in the runner-set namespace,
     # not here. Hardening lives on the runner-set HelmRelease.
