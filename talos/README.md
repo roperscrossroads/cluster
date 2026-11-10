@@ -10,7 +10,9 @@ every node).
 
 - `topf.yaml`: cluster name/endpoint, `talosVersion` + `kubernetesVersion`
   (Renovate-annotated), Image Factory `schematicId`, nodes (`host`, `ip`, `role`,
-  per-node `data`: install disk, MAC).
+  per-node `data`: install disk, MAC, kernel modules, disk encryption, node labels).
+  topf templates fail on a missing key, so every node lists every `data` key (`[]` / `{}`
+  when unused).
 - `secrets.sops.yaml`: the Talos secrets bundle (whole-file sops).
 - Patches, merged in this order, lexicographically within each directory:
   - `all/`: every node
@@ -34,7 +36,10 @@ every node).
 | `talosconfig` | regenerate `talos/talosconfig` (`TALOSCONFIG` points here via mise) |
 | `rotate <step> [node]` | Talos API CA + machine token rotation, one checked step at a time; log and encrypted backups in `rotation/` (gitignored). `rotate status` shows progress |
 
-topf asks before every change; pass `--confirm=false` for non-interactive runs.
+topf asks before every change; pass `--confirm=false` for non-interactive runs (runbox jobs,
+scripts): with output piped, the prompt is invisible and the run just waits.
+Run topf from `talos/` (it reads `./topf.yaml`). Bare `talosctl -n talos-1` needs the hostnames
+to resolve on the workstation; otherwise pass node IPs (`-n <ip> -e <ip>`).
 Runbook: `~/notes/local/infra/mini-cluster/runbooks/node-reboot.md` §5.
 
 ## Talos 1.14 config forms (2026-11)
@@ -56,6 +61,13 @@ The patches use the Talos 1.14 multi-document forms (`UnattendedInstallConfig`,
   the pre-1.14 path also appended an `identity` read fallback. Accepted (2026-11-08): secrets
   have been secretbox-encrypted since bootstrap. Check after the first apply: listing all
   secrets through that node's API server must succeed.
+
+- **Node labels: `KubeNodeConfig.labels`**, rendered by `all/85-node-labels.yaml.tpl` from each
+  node's `nodeLabels` data. The v1alpha1 `machine.nodeLabels` is refused once a `KubeNodeConfig`
+  document exists. The patch merges key by key with the generated labels (control-plane role
+  etc. stay), and Talos lists what it manages in the node's `talos.dev/owned-labels` annotation,
+  so deleting a label here removes it from the node. Use a custom prefix (a node may not set most
+  `kubernetes.io` labels on itself). Today: `rxr.lab/ci: "true"` on the nodes CI runners may use.
 
 topf renders against each node's *running* version for `apply`/`upgrade`/`diff`, so these
 patches only work once a node runs 1.14. The 1.13 → 1.14 hop therefore upgrades nodes with
