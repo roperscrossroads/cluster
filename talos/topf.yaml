@@ -29,6 +29,7 @@ nodes:
       mtu: 1500
       encryptDisk: false
       kernelModules: []
+      nodeLabels: {}  # no CI label: keep runners off the smallest node
   - host: "talos-2"
     ip: "172.16.21.22"
     role: control-plane
@@ -41,6 +42,8 @@ nodes:
       mtu: 1500
       encryptDisk: false
       kernelModules: []
+      nodeLabels:
+        rxr.lab/ci: "true"
   - host: "talos-3"
     ip: "172.16.21.23"
     role: control-plane
@@ -53,3 +56,5 @@ nodes:
       mtu: 1500
       encryptDisk: false
       kernelModules: []
+      nodeLabels:
+        rxr.lab/ci: "true"
