@@ -8,7 +8,7 @@ spec:
   chart:
     spec:
       chart: helm-chart
-      version: "0.1.7"
+      version: "0.1.8"
       sourceRef:
         kind: HelmRepository
         name: openshell
@@ -26,15 +26,15 @@ spec:
     gateway:
       image:
         repository: ghcr.io/nvidia/openshell/gateway
-        tag: "0.1.7"
+        tag: "0.1.8"
     supervisor:
       image:
         repository: ghcr.io/nvidia/openshell/supervisor
-        tag: "0.1.7"
+        tag: "0.1.8"
     sandboxRuntime:
       image:
         repository: ghcr.io/nvidia/openshell/sandbox
-        tag: "0.1.7"
+        tag: "0.1.8"
     # Default sandbox image (was server.sandboxImage); keep the community base image
     # rather than the chart's new nvcr.io ubuntu default.
     sandbox:
