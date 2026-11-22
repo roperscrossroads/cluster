@@ -84,6 +84,11 @@
       automergeType: "branch",
       matchUpdateTypes: ["minor", "patch"],
       ignoreTests: true,
+      // A bump taken before the release's assets exist commits a mise.lock
+      // with no per-platform checksums (cloudflared 2026.11.1 was bumped 5 min
+      // before its release was published), leaving a gap until the weekend
+      // lockFileMaintenance PR. Waiting also matches the GitHub Actions rule.
+      minimumReleaseAge: "3 days",
     },
     {
       description: "Auto-merge GitHub Actions",
