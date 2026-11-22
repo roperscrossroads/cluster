@@ -29,18 +29,31 @@ spec:
                   name: cloudflare-tunnel-secret
             args: ["tunnel", "run"]
             probes:
-              liveness: &probes
+              # Liveness asks "is the process alive" (/healthcheck). /ready only
+              # passes while an edge connection is up, so using it for liveness
+              # restart-looped the pod through a WAN outage it can't fix.
+              liveness:
                 enabled: true
                 custom: true
                 spec:
                   httpGet:
-                    path: /ready
+                    path: /healthcheck
                     port: &port 8080
                   initialDelaySeconds: 0
                   periodSeconds: 10
                   timeoutSeconds: 1
                   failureThreshold: 3
-              readiness: *probes
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /ready
+                    port: *port
+                  initialDelaySeconds: 0
+                  periodSeconds: 10
+                  timeoutSeconds: 1
+                  failureThreshold: 3
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
