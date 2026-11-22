@@ -28,6 +28,10 @@ Thumbs.db
 # Local pre-commit cache
 .pre-commit-cache/
 
+# mise's local state (uv lockfiles for pipx tools); not repo state, Renovate
+# tracks only .mise.toml and mise.lock
+.mise/
+
 # Decrypted SOPS output
 *.dec.yaml
 *.dec.yml
