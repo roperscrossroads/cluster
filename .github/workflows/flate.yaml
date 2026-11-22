@@ -53,7 +53,7 @@ jobs:
           persist-credentials: false
 
       - name: Install Flate
-        uses: home-operations/flate/action@631b76b69c4e58c6f4d1cb01e23616fa61aebafa # v0.6.5
+        uses: home-operations/flate/action@bbb6ebc344da051752dbdb1b413860ceffcfb63d # v0.7.3
         with:
           # The action defaults base to the default branch and exports it as
           # FLATE_BASE. The checkout here has no main ref, and --base is
@@ -90,7 +90,7 @@ jobs:
           path: default
 
       - name: Install Flate
-        uses: home-operations/flate/action@631b76b69c4e58c6f4d1cb01e23616fa61aebafa # v0.6.5
+        uses: home-operations/flate/action@bbb6ebc344da051752dbdb1b413860ceffcfb63d # v0.7.3
         with:
           # The action defaults base to the default branch and exports it as
           # FLATE_BASE. The checkout here has no main ref, and --base is
