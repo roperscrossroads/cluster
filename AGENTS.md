@@ -23,7 +23,7 @@ kubernetes/apps/
 ├── cert-manager/    # cert-manager
 ├── cnpg-system/     # operator, operator-crds
 ├── copilot-peer/    # peer
-├── default/         # echo — smoke-test target
+├── default/         # echo, echo-standby — smoke-test target
 ├── flux-system/     # flux-instance, flux-operator
 ├── immich/          # app, pet-tagger
 ├── inference/       # ollama

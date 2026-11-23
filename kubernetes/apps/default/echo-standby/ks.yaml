@@ -1,0 +1,48 @@
+---
+# Spike for the KEDA HTTP add-on (epic agents-my6p, task .2): a throwaway
+# echo that scales to zero behind the interceptor, on the internal gateway.
+# Remove once the pilot service is in.
+#
+# Two Kustomizations so the ScaledObject is created only after the
+# InterceptorRoute is ready: a ScaledObject reconciled first falls back to a
+# CPU metric and scale-from-zero silently never happens.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: echo-standby
+spec:
+  dependsOn:
+    - name: http-add-on
+      namespace: keda-system
+  interval: 1h
+  path: ./kubernetes/apps/default/echo-standby/app
+  postBuild:
+    substituteFrom:
+      - name: cluster-secrets
+        kind: Secret
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: default
+  # Wait for every object, the InterceptorRoute's Ready condition included.
+  wait: true
+  timeout: 5m
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: echo-standby-scaling
+spec:
+  dependsOn:
+    - name: echo-standby
+  interval: 1h
+  path: ./kubernetes/apps/default/echo-standby/scaling
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: default
+  wait: false
