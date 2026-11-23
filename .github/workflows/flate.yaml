@@ -40,6 +40,7 @@ jobs:
           patterns: |-
             kubernetes/**
             .github/workflows/flate.yaml
+            .github/scripts/flate-stand-in-secrets.sh
 
   test:
     name: Flate - Test
@@ -53,7 +54,7 @@ jobs:
           persist-credentials: false
 
       - name: Install Flate
-        uses: home-operations/flate/action@bbb6ebc344da051752dbdb1b413860ceffcfb63d # v0.7.3
+        uses: home-operations/flate/action@4e07f351352d235a335e5a1f0a088eab7ec40997 # v0.8.0
         with:
           # The action defaults base to the default branch and exports it as
           # FLATE_BASE. The checkout here has no main ref, and --base is
@@ -65,7 +66,13 @@ jobs:
         # --api-versions: charts that gate on .Capabilities.APIVersions (the
         # OpenShell preflight requires the Agent Sandbox API) see what the
         # live cluster serves; an offline render has no API server to ask.
-        run: flate test all --path ./kubernetes/flux/cluster --api-versions agents.x-k8s.io/v1beta1
+        # --supply: stand-in cluster-secrets so ${VAR} substitutions are not
+        # empty (CI cannot decrypt the real one); see the script.
+        run: |
+          .github/scripts/flate-stand-in-secrets.sh ./kubernetes/apps > "${RUNNER_TEMP}/stand-in-secrets.yaml"
+          flate test all --path ./kubernetes/flux/cluster \
+            --api-versions agents.x-k8s.io/v1beta1 \
+            --supply "${RUNNER_TEMP}/stand-in-secrets.yaml"
 
   diff:
     name: Flate - Diff
@@ -90,7 +97,7 @@ jobs:
           path: default
 
       - name: Install Flate
-        uses: home-operations/flate/action@bbb6ebc344da051752dbdb1b413860ceffcfb63d # v0.7.3
+        uses: home-operations/flate/action@4e07f351352d235a335e5a1f0a088eab7ec40997 # v0.8.0
         with:
           # The action defaults base to the default branch and exports it as
           # FLATE_BASE. The checkout here has no main ref, and --base is
@@ -103,10 +110,13 @@ jobs:
         run: |
           # --path-orig puts flate in changed-only mode: it reconciles just the
           # subtree the PR touches, so the diff stays scoped and small.
+          # --supply: stand-in cluster-secrets, as in the test job.
+          ./pull/.github/scripts/flate-stand-in-secrets.sh ./pull/kubernetes/apps > "${RUNNER_TEMP}/stand-in-secrets.yaml"
           flate diff all \
             --path ./pull/kubernetes/flux/cluster \
             --path-orig ./default/kubernetes/flux/cluster \
             --api-versions agents.x-k8s.io/v1beta1 \
+            --supply "${RUNNER_TEMP}/stand-in-secrets.yaml" \
             -o github > diff.patch
           {
             echo 'diff<<DIFF_EOF'
