@@ -9,3 +9,4 @@ components:
 resources:
   - ./namespace.yaml
   - ./keda/ks.yaml
+  - ./http-add-on/ks.yaml
