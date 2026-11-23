@@ -1,0 +1,75 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: keda-add-ons-http
+spec:
+  chart:
+    spec:
+      chart: keda-add-ons-http
+      version: 0.16.0
+      # Same chart repository as KEDA core (keda/app/helmrepository.yaml).
+      sourceRef:
+        kind: HelmRepository
+        name: keda
+        namespace: keda-system
+  interval: 1h
+  install:
+    crds: CreateReplace
+  upgrade:
+    crds: CreateReplace
+  # The chart's defaults request about 1.75 CPU cores while every app is at
+  # zero: 3 interceptors, 3 scalers and 1 operator at 250m each. Sized here
+  # for one small cluster: 1 of each, small requests. Revisit after the pilot.
+  values:
+    operator:
+      replicas: 1
+      pullPolicy: IfNotPresent
+      resources:
+        requests:
+          cpu: 25m
+          memory: 32Mi
+        limits:
+          # Watches every namespace; the chart's 64Mi leaves little room.
+          memory: 128Mi
+    scaler:
+      replicas: 1
+      pullPolicy: IfNotPresent
+      resources:
+        requests:
+          cpu: 25m
+          memory: 32Mi
+        limits:
+          memory: 128Mi
+    interceptor:
+      pullPolicy: IfNotPresent
+      replicas:
+        min: 1
+        max: 3
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          # The interceptor holds pending requests during a cold start; the
+          # chart's 64Mi is too tight for a burst. No CPU limit: throttling a
+          # proxy adds latency to every request (null removes the chart's).
+          cpu: null
+          memory: 256Mi
+  # The interceptor serves Prometheus /metrics on 2223 (the default of
+  # OTEL_PROM_EXPORTER_PORT in the add-on's code), but the chart does not
+  # declare the port, and Prometheus drops undeclared ports. Declare it as
+  # `metrics` so one PodMonitor covers the interceptor and the scaler.
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              kind: Deployment
+              name: keda-add-ons-http-interceptor
+            patch: |
+              - op: add
+                path: /spec/template/spec/containers/0/ports/-
+                value:
+                  name: metrics
+                  containerPort: 2223
+                  protocol: TCP

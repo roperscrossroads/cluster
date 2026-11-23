@@ -27,8 +27,8 @@ kubernetes/apps/
 ├── flux-system/     # flux-instance, flux-operator
 ├── immich/          # app, pet-tagger
 ├── inference/       # ollama
-├── keda-system/     # keda — classic HelmRepository, NOT OCI (ghcr anon
-│                    #   denied on kedacore)
+├── keda-system/     # http-add-on, keda — classic HelmRepository, NOT OCI
+│                    #   (ghcr anon denied on kedacore)
 ├── kube-system/     # cilium, coredns, metrics-server, reloader, spegel —
 │                    #   coredns forwards home.arpa; spegel = registry mirror
 ├── network/         # cloudflare-dns, cloudflare-tunnel, envoy-gateway,

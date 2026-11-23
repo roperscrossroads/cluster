@@ -1,0 +1,27 @@
+---
+# Scrapes the add-on's interceptor (interceptor_* request, concurrency and
+# cold-start metrics) and scaler (scaler_* metrics), both on port `metrics`
+# (2223). The operator also names a port `metrics` (8443, HTTPS with auth),
+# so it is excluded by component.
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: keda-add-ons-http
+  labels:
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames:
+      - keda-system
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: keda-add-ons-http
+    matchExpressions:
+      - key: app.kubernetes.io/component
+        operator: In
+        values:
+          - interceptor
+          - scaler
