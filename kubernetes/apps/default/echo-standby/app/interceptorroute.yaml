@@ -1,0 +1,25 @@
+---
+# Routing and the scaling metric for the interceptor. `hosts` must equal the
+# HTTPRoute's hostnames, in lowercase (0.16.0 matches case-sensitively).
+apiVersion: http.keda.sh/v1beta1
+kind: InterceptorRoute
+metadata:
+  name: echo-standby
+spec:
+  target:
+    service: echo-standby
+    port: 80
+  rules:
+    - hosts:
+        - echo-standby-int.${SECRET_DOMAIN}
+  scalingMetric:
+    concurrency:
+      targetValue: 10
+  coldStart:
+    # Hold the first requests while the pod starts; beyond 20 waiting on
+    # one interceptor, answer 503 instead of piling up memory.
+    maxPendingRequests: 20
+    overflow: Reject
+  timeouts:
+    # A cold start has no deadline by default. Give up (504) after 60 s.
+    readiness: 60s

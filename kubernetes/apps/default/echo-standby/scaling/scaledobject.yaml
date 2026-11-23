@@ -1,0 +1,19 @@
+---
+# Replica bounds and idle time. The metric comes from the add-on's scaler,
+# which pushes the InterceptorRoute's concurrency to KEDA.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: echo-standby
+spec:
+  scaleTargetRef:
+    name: echo-standby
+  minReplicaCount: 0
+  maxReplicaCount: 1
+  # Scale to zero after 5 minutes without requests.
+  cooldownPeriod: 300
+  triggers:
+    - type: external-push
+      metadata:
+        scalerAddress: keda-add-ons-http-external-scaler.keda-system:9090
+        interceptorRoute: echo-standby
