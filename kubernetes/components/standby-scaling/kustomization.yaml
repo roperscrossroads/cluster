@@ -1,0 +1,9 @@
+---
+# The ScaledObject for a standby app (see ../standby/README.md). Kept apart so
+# a second Flux Kustomization applies it only after the InterceptorRoute is
+# Ready: a ScaledObject reconciled first falls back to a CPU metric and
+# scale-from-zero silently never happens.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+resources:
+  - ./scaledobject.yaml

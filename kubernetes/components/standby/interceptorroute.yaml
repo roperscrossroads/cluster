@@ -1,0 +1,38 @@
+---
+# Routing and the scaling metric for the interceptor. The host must equal the
+# HTTPRoute's and be lowercase (0.16.0 matches hosts case-sensitively).
+apiVersion: http.keda.sh/v1beta1
+kind: InterceptorRoute
+metadata:
+  name: ${STANDBY_APP}
+spec:
+  target:
+    service: ${STANDBY_APP}
+    port: ${STANDBY_PORT:=80}
+  rules:
+    - hosts:
+        - ${STANDBY_HOSTNAME}.${SECRET_DOMAIN}
+  scalingMetric:
+    concurrency:
+      targetValue: 10
+  coldStart:
+    # Hold the first requests while the pod starts; beyond 20 waiting on
+    # one interceptor, answer 503 instead of piling up memory.
+    maxPendingRequests: 20
+    overflow: Reject
+  timeouts:
+    # A cold start has no deadline by default. Give up (504) after this.
+    readiness: ${STANDBY_READINESS_TIMEOUT:=60s}
+  staticRoutes:
+    # Health checks that never wake the app. While the app is at zero the
+    # interceptor answers the health path itself with "standby"; while it is
+    # up the probe goes through to the app. Either way the request bypasses
+    # the scaling metric, so a probe neither wakes the app nor keeps it awake.
+    - rules:
+        - paths:
+            - value: ${STANDBY_HEALTH_PATH:=/healthz}
+      response:
+        statusCode: 200
+        body: standby
+        headers:
+          Content-Type: text/plain

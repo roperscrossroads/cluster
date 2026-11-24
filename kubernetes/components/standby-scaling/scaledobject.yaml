@@ -4,16 +4,16 @@
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
-  name: echo-standby
+  name: ${STANDBY_APP}
 spec:
   scaleTargetRef:
-    name: echo-standby
+    name: ${STANDBY_APP}
   minReplicaCount: 0
-  maxReplicaCount: 1
-  # Scale to zero after 5 minutes without requests.
-  cooldownPeriod: 300
+  maxReplicaCount: ${STANDBY_MAX_REPLICAS:=1}
+  # Seconds without requests before scaling to zero.
+  cooldownPeriod: ${STANDBY_COOLDOWN:=300}
   triggers:
     - type: external-push
       metadata:
         scalerAddress: keda-add-ons-http-external-scaler.keda-system:9090
-        interceptorRoute: echo-standby
+        interceptorRoute: ${STANDBY_APP}
