@@ -1,9 +1,10 @@
 ---
+# The app itself; the standby component adds the InterceptorRoute, HTTPRoute
+# and daily wake check from the STANDBY_* variables in ../ks.yaml.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ./deployment.yaml
   - ./service.yaml
-  - ./interceptorroute.yaml
-  - ./httproute.yaml
-  - ./wake-check.yaml
+components:
+  - ../../../../components/standby
