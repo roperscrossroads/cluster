@@ -23,3 +23,16 @@ spec:
   timeouts:
     # A cold start has no deadline by default. Give up (504) after 60 s.
     readiness: 60s
+  staticRoutes:
+    # Health checks that never wake the app. While the app is at zero the
+    # interceptor answers /healthz itself with "standby"; while it is up the
+    # probe goes through to the app. Either way the request bypasses the
+    # scaling metric, so a probe neither wakes the app nor keeps it awake.
+    - rules:
+        - paths:
+            - value: /healthz
+      response:
+        statusCode: 200
+        body: standby
+        headers:
+          Content-Type: text/plain
