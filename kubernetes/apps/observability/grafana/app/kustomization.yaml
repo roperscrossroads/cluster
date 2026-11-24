@@ -8,3 +8,4 @@ resources:
   - ./grafana.yaml
   - ./grafanadatasources.yaml
   - ./grafanadashboards-starter.yaml
+  - ./grafanadashboard-standby-apps.yaml
