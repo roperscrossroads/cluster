@@ -5,10 +5,12 @@
 # podmonitor.yaml), labelled per InterceptorRoute (route_namespace,
 # route_name).
 #
-# Failures are rare, so the first one for a route usually creates a brand-new
-# series, and increase() needs two samples in its window, so it misses that
-# event. Each rule therefore also counts series that did not exist 15 minutes
-# ago (`x unless x offset 15m`). Both halves are summed and filtered
+# Failures are rare, so the first ones for a route usually create a brand-new
+# series. increase() measures change between samples, so everything counted
+# before that series' first scrape is invisible to it: a burst of 20 errors
+# that creates the series reads 20 at every scrape, and increase() says 0
+# (seen live). Each rule therefore also counts series that did not exist 15
+# minutes ago (`x unless x offset 15m`). Both halves are summed and filtered
 # separately before the `or`, so an event is never counted twice.
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
@@ -66,6 +68,11 @@ spec:
           expr: |-
             sum by (route_namespace, route_name) (
               increase(interceptor_request_count_total{code=~"5..", route_name!=""}[15m])
+            ) >= 3
+            or
+            sum by (route_namespace, route_name) (
+              interceptor_request_count_total{code=~"5..", route_name!=""}
+                unless interceptor_request_count_total{code=~"5..", route_name!=""} offset 15m
             ) >= 3
           labels:
             severity: warning
