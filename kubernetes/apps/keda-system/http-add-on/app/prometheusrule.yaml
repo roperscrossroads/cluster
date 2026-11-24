@@ -1,0 +1,76 @@
+---
+# Failed wakes on scale-to-zero routes. A static /healthz shows only that a
+# standby app can be reached; these alerts catch the app failing to start
+# when someone actually uses it. Metrics come from the interceptor (see
+# podmonitor.yaml), labelled per InterceptorRoute (route_namespace,
+# route_name).
+#
+# Failures are rare, so the first one for a route usually creates a brand-new
+# series, and increase() needs two samples in its window, so it misses that
+# event. Each rule therefore also counts series that did not exist 15 minutes
+# ago (`x unless x offset 15m`). Both halves are summed and filtered
+# separately before the `or`, so an event is never counted twice.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: keda-add-ons-http
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: keda-http-wake
+      rules:
+        # The app was asked to wake and had no ready pod within the route's
+        # timeouts.readiness; the waiting request got a 504.
+        - alert: KedaHttpWakeTimedOut
+          expr: |-
+            sum by (route_namespace, route_name) (
+              increase(interceptor_cold_start_duration_seconds_count{outcome="timeout"}[15m])
+            ) > 0
+            or
+            sum by (route_namespace, route_name) (
+              interceptor_cold_start_duration_seconds_count{outcome="timeout"}
+                unless interceptor_cold_start_duration_seconds_count{outcome="timeout"} offset 15m
+            ) > 0
+          labels:
+            severity: warning
+          annotations:
+            summary: >-
+              Standby app {{ $labels.route_namespace }}/{{ $labels.route_name }}
+              did not become ready in time when woken (504). Check the
+              Deployment's events and pod logs.
+        # More requests were waiting on a cold start than
+        # coldStart.maxPendingRequests allows; the extra ones got a 503.
+        - alert: KedaHttpWakeRejected
+          expr: |-
+            sum by (route_namespace, route_name) (
+              increase(interceptor_cold_start_rejections_total[15m])
+            ) > 0
+            or
+            sum by (route_namespace, route_name) (
+              interceptor_cold_start_rejections_total
+                unless interceptor_cold_start_rejections_total offset 15m
+            ) > 0
+          labels:
+            severity: warning
+          annotations:
+            summary: >-
+              Requests to {{ $labels.route_namespace }}/{{ $labels.route_name }}
+              were turned away (503) while it woke: more were waiting than
+              coldStart.maxPendingRequests allows.
+        # Server errors on a routed host: the app failing, or the two cases
+        # above (503 rejections, 504 wake timeouts). Three in 15 minutes, so
+        # one stray error does not page. route_name!="" drops requests that
+        # matched no route (unknown Host gives 404 anyway).
+        - alert: KedaHttpRouteServerErrors
+          expr: |-
+            sum by (route_namespace, route_name) (
+              increase(interceptor_request_count_total{code=~"5..", route_name!=""}[15m])
+            ) >= 3
+          labels:
+            severity: warning
+          annotations:
+            summary: >-
+              {{ $labels.route_namespace }}/{{ $labels.route_name }} returned
+              about {{ $value | printf "%.0f" }} server errors (5xx) through
+              the interceptor in 15 minutes.
