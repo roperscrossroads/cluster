@@ -1,0 +1,70 @@
+---
+# Daily test wake. /healthz is a static route and never wakes the app, so it
+# shows only that the route works. This asks for a real page through the
+# interceptor, which starts the app if it is at zero, and fails the Job if no
+# 2xx comes back (504 when the app is not ready within timeouts.readiness).
+# A failed Job raises KubeJobFailed. The app then idles back to zero after
+# the usual cooldown.
+#
+# It goes straight to the interceptor's Service with the route's Host, so it
+# checks interceptor → app; the gateway in front is covered by /healthz.
+# Copy this file for each standby app; change HOST and WAKE_PATH.
+#
+# Flux post-build substitution runs on this file, comments included: write
+# shell variables as bare $var, never with braces.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: echo-standby-wake-check
+spec:
+  schedule: "0 9 * * *"
+  timeZone: Etc/UTC
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      # No retry: a second try finds the app already up and would hide the
+      # failure.
+      backoffLimit: 0
+      activeDeadlineSeconds: 180
+      # KubeJobFailed fires for as long as a failed Job exists; removing it
+      # after a day clears the alert by itself (the next run re-raises it if
+      # the app is still broken).
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: wake
+              image: public.ecr.aws/docker/library/busybox:1.38
+              env:
+                - name: HOST
+                  value: echo-standby-int.${SECRET_DOMAIN}
+                - name: WAKE_PATH
+                  value: /wake-check
+                - name: INTERCEPTOR
+                  value: http://keda-add-ons-http-interceptor-proxy.keda-system:8080
+              command:
+                - sh
+                - -c
+                - |
+                  echo "waking $HOST$WAKE_PATH at $(date -u +%T)"
+                  wget -S -O /dev/null -T 120 --header "Host: $HOST" "$INTERCEPTOR$WAKE_PATH" 2>&1
+                  rc=$?
+                  echo "done at $(date -u +%T), exit $rc (a cold start shows x-keda-http-cold-start: true)"
+                  exit $rc
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests: { cpu: "10m", memory: "16Mi" }
+                limits: { memory: "32Mi" }
