@@ -16,5 +16,13 @@ spec:
     prometheus:
       metricServer:
         enabled: false
+      # The operator's own metrics: per-ScaledObject errors, scaler
+      # activity and the scale-loop latency. Scraped by the chart's
+      # PodMonitor; the label makes Prometheus select it. Rules on them live
+      # in prometheusrule.yaml.
       operator:
-        enabled: false
+        enabled: true
+        podMonitor:
+          enabled: true
+          additionalLabels:
+            release: kube-prometheus-stack

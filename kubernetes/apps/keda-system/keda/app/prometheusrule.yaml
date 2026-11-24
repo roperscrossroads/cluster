@@ -1,0 +1,35 @@
+---
+# KEDA core failing to drive a ScaledObject: a scaler it cannot query, a
+# trigger it cannot resolve (an external-push ScaledObject whose
+# InterceptorRoute is missing, for one). The operator retries every polling
+# interval, so a real fault keeps the counter rising; `for: 10m` skips the
+# one-off errors seen while things start up. Detail per trigger is in
+# keda_scaler_detail_errors_total and the keda-operator log.
+#
+# KEDA labels its metrics with the ScaledObject's namespace as `namespace`;
+# Prometheus keeps the scrape target's namespace there and renames KEDA's to
+# `exported_namespace`.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: keda
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: keda
+      rules:
+        - alert: KedaScaledObjectErrors
+          expr: |-
+            sum by (exported_namespace, scaledObject) (
+              increase(keda_scaled_object_errors_total[5m])
+            ) > 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: >-
+              KEDA keeps failing to evaluate ScaledObject
+              {{ $labels.exported_namespace }}/{{ $labels.scaledObject }}
+              (errors for 10 minutes). Check its status and the keda-operator
+              log.
