@@ -1,0 +1,43 @@
+---
+# Backstop for the VolumeSnapshot CRD / snapshot-controller pairing (see
+# scripts/check-snapshot-crds.py and the .pre-commit-config.yaml hook): fails if
+# the controller image tag was bumped without re-vendoring the CRDs in
+# external-snapshotter-crds/app/crds.yaml. That drift (bead agents-k4io.10) left
+# the v8.7 controller without the group-snapshot v1 API it expects.
+# Pure filesystem derivation, github-hosted.
+name: "Snapshot CRDs Check"
+
+on:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "kubernetes/apps/storage-system/external-snapshotter/app/controller.yaml"
+      - "kubernetes/apps/storage-system/external-snapshotter-crds/app/crds.yaml"
+      - "scripts/check-snapshot-crds.py"
+  push:
+    branches: ["main"]
+    paths:
+      - "kubernetes/apps/storage-system/external-snapshotter/app/controller.yaml"
+      - "kubernetes/apps/storage-system/external-snapshotter-crds/app/crds.yaml"
+      - "scripts/check-snapshot-crds.py"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: snapshot crds in sync
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: CRDs match snapshot-controller tag
+        run: python3 scripts/check-snapshot-crds.py
