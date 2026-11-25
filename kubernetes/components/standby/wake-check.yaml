@@ -8,14 +8,13 @@
 #
 # It goes straight to the interceptor's Service with the route's Host, so it
 # checks interceptor → app; the gateway in front is covered by /healthz.
-# Copy this file for each standby app; change HOST and WAKE_PATH.
 #
 # Flux post-build substitution runs on this file, comments included: write
 # shell variables as bare $var, never with braces.
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: echo-standby-wake-check
+  name: ${STANDBY_APP}-wake-check
 spec:
   schedule: "0 9 * * *"
   timeZone: Etc/UTC
@@ -46,9 +45,9 @@ spec:
               image: public.ecr.aws/docker/library/busybox:1.38
               env:
                 - name: HOST
-                  value: echo-standby-int.${SECRET_DOMAIN}
+                  value: ${STANDBY_HOSTNAME}.${SECRET_DOMAIN}
                 - name: WAKE_PATH
-                  value: /wake-check
+                  value: ${STANDBY_WAKE_PATH:=/}
                 - name: INTERCEPTOR
                   value: http://keda-add-ons-http-interceptor-proxy.keda-system:8080
               command:

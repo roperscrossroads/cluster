@@ -1,0 +1,10 @@
+---
+# Standby: what puts an app behind the KEDA HTTP add-on, scaled to zero when
+# idle. See README.md. The ScaledObject is in ../standby-scaling, applied by a
+# second Flux Kustomization once this one is Ready.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+resources:
+  - ./interceptorroute.yaml
+  - ./httproute.yaml
+  - ./wake-check.yaml

@@ -1,0 +1,19 @@
+---
+# The backend is the add-on's interceptor proxy in keda-system (allowed per
+# namespace by the ReferenceGrant in keda-system/http-add-on), which holds the
+# request while KEDA scales the app up from zero.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: ${STANDBY_APP}
+spec:
+  hostnames: ["${STANDBY_HOSTNAME}.${SECRET_DOMAIN}"]
+  parentRefs:
+    - name: ${STANDBY_GATEWAY:=envoy-internal}
+      namespace: network
+      sectionName: https
+  rules:
+    - backendRefs:
+        - name: keda-add-ons-http-interceptor-proxy
+          namespace: keda-system
+          port: 8080

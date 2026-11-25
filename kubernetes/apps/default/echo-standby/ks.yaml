@@ -1,7 +1,7 @@
 ---
-# Spike for the KEDA HTTP add-on (epic agents-my6p, task .2): a throwaway
-# echo that scales to zero behind the interceptor, on the internal gateway.
-# Remove once the pilot service is in.
+# Spike for the KEDA HTTP add-on (epic agents-my6p, task .2): an echo that
+# scales to zero behind the interceptor, on the internal gateway. Also the
+# reference user of kubernetes/components/standby (see its README.md).
 #
 # Two Kustomizations so the ScaledObject is created only after the
 # InterceptorRoute is ready: a ScaledObject reconciled first falls back to a
@@ -17,6 +17,10 @@ spec:
   interval: 1h
   path: ./kubernetes/apps/default/echo-standby/app
   postBuild:
+    substitute:
+      STANDBY_APP: echo-standby
+      STANDBY_HOSTNAME: echo-standby-int
+      STANDBY_WAKE_PATH: /wake-check
     substituteFrom:
       - name: cluster-secrets
         kind: Secret
@@ -39,6 +43,9 @@ spec:
     - name: echo-standby
   interval: 1h
   path: ./kubernetes/apps/default/echo-standby/scaling
+  postBuild:
+    substitute:
+      STANDBY_APP: echo-standby
   prune: true
   sourceRef:
     kind: GitRepository
