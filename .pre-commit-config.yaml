@@ -65,6 +65,16 @@ repos:
         language: system
         pass_filenames: false
         files: '^(kubernetes/apps/storage-system/external-snapshotter/app/controller\.yaml|kubernetes/apps/storage-system/external-snapshotter-crds/app/crds\.yaml|scripts/check-snapshot-crds\.py)$'
+      # Same guard for the vendored agent-sandbox release manifest vs the
+      # controller image tag inside it. Fix a failure with
+      # `python3 scripts/check-agent-sandbox.py --vendor`.
+      # CI: .github/workflows/agent-sandbox-check.yaml.
+      - id: agent-sandbox
+        name: agent-sandbox manifest tracks its controller tag
+        entry: python3 scripts/check-agent-sandbox.py
+        language: system
+        pass_filenames: false
+        files: '^(kubernetes/apps/openshell/agent-sandbox/app/manifest\.yaml|scripts/check-agent-sandbox\.py)$'
       # Flux post-build substitution rewrites the BUILT manifests, so a bad
       # ${...} passes `kustomize build` and only corrupts the live object.
       # It broke a backup-retention CronJob for 51 nights and briefly turned
