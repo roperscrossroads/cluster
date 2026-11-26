@@ -8,7 +8,7 @@ spec:
   chart:
     spec:
       chart: dagu
-      version: "1.0.11"
+      version: "2.0.9"
       sourceRef:
         kind: HelmRepository
         name: dagu
@@ -387,6 +387,13 @@ spec:
                 path: /spec/template/spec/volumes/0/persistentVolumeClaim
                 value: {claimName: dagu-data}
   values:
+    # Chart 2.x defaults to `standalone`: one dagu-ui pod running start-all,
+    # and no scheduler, coordinator or worker Deployments. Our postRenderer
+    # patches target those Deployments and would silently match nothing
+    # (git-sync and the scheduler liveness probe would vanish while CI stays
+    # green). Keep the split layout we run.
+    deploymentMode: distributed
+
     image:
       repository: ghcr.io/dagucloud/dagu
       tag: "2.26.0"
@@ -483,6 +490,12 @@ spec:
           memory: "512Mi"
     ui:
       replicas: 1
+      # Chart 2.x leaves UI limits unset by default because in standalone
+      # mode workflows run inside the UI container. Ours only serves the UI
+      # (distributed), so keep the 1.x limits.
+      resources:
+        requests: {cpu: 250m, memory: 256Mi}
+        limits: {cpu: 500m, memory: 512Mi}
       service:
         port: 8080
 
