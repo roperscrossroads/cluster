@@ -1,13 +1,16 @@
 ---
-# PHASE 2 (current, 2026-06-03): replicas=0. Enrolment is stable, so the UI +
-# built-in 5-minute polling loop are parked and the sibling CronJob (now
-# unsuspended) handles unattended tagging every 6h. Scale back to 1 briefly
-# when you want the interactive UI to enrol new pets, gather refs, or add
-# negatives — then return to 0.
+# PHASE 3 (2026-11-27): a standby app (kubernetes/components/standby). It
+# scales to zero when idle and starts when someone opens the UI: the first
+# request is held by the KEDA HTTP interceptor until the pod is Ready (about
+# 40-60 s: CLIP loads in 20-30 s, readiness waits 30 s), then it scales back
+# to 0 after 30 idle minutes (STANDBY_COOLDOWN in ../ks.yaml). No more scaling
+# by hand to enrol pets; the sibling CronJob still tags unattended every 6h.
 #
-# Rationale for parking it: this single replica held a persistent ~2 GiB on
-# talos-3 (the 12 GiB worker, already at ~91% memory requests) just to idle
-# between enrolment sessions. The CronJob does the same work on demand.
+# No `replicas` here: KEDA owns the count (0 or 1).
+#
+# Phase 2 (2026-06-03) parked it at replicas=0 by hand because one idle replica
+# held ~2 GiB on talos-3 (the 12 GiB worker, already at ~91% memory requests).
+# Standby keeps that saving without the manual step.
 #
 # Note: this Deployment does NOT use low-priority-preemptible. While the UI
 # is up it's interactive — you don't want it evicted mid-enrolment. The
@@ -20,7 +23,6 @@ metadata:
   labels:
     app.kubernetes.io/name: immich-pet-tagger
 spec:
-  replicas: 0
   strategy:
     type: Recreate              # single RWX mount; no rolling updates
   selector:
@@ -65,8 +67,14 @@ spec:
               value: http://immich-server.immich.svc.cluster.local:2283
             - name: IMMICH_EXTERNAL_URL
               value: https://immich.${SECRET_DOMAIN}
+            # The app runs one incremental scan as soon as it starts, then one
+            # per POLL_INTERVAL. Every wake (including the daily wake check)
+            # therefore scans photos added since the last scan, which is cheap.
+            # A day keeps a long enrolment session from repeating the
+            # CronJob's work; a scan cut short by scale-down resumes from its
+            # saved cursor next time.
             - name: POLL_INTERVAL
-              value: "300"        # 5 min — matches upstream default during enrolment
+              value: "86400"
             - name: GPU_WORKERS
               value: "1"          # CPU-only; a second worker just duplicates models in RAM
             - name: YOLO_INPUT_SIZE

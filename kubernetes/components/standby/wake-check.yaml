@@ -1,5 +1,5 @@
 ---
-# Daily test wake. /healthz is a static route and never wakes the app, so it
+# Test wake, daily by default (STANDBY_WAKE_SCHEDULE). /healthz is a static route and never wakes the app, so it
 # shows only that the route works. This asks for a real page through the
 # interceptor, which starts the app if it is at zero, and fails the Job if no
 # 2xx comes back (504 when the app is not ready within timeouts.readiness).
@@ -16,7 +16,7 @@ kind: CronJob
 metadata:
   name: ${STANDBY_APP}-wake-check
 spec:
-  schedule: "0 9 * * *"
+  schedule: "${STANDBY_WAKE_SCHEDULE:=0 9 * * *}"
   timeZone: Etc/UTC
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 1

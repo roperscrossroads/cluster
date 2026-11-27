@@ -78,14 +78,15 @@ spec:
 | `STANDBY_PORT` | `80` | Service port |
 | `STANDBY_GATEWAY` | `envoy-internal` | `envoy-external` to publish it |
 | `STANDBY_HEALTH_PATH` | `/healthz` | static route: answers `standby` at zero without waking the app |
-| `STANDBY_WAKE_PATH` | `/` | what the daily wake check requests; must need the app (not the health path) |
+| `STANDBY_WAKE_PATH` | `/` | what the wake check requests; must need the app (not the health path) |
+| `STANDBY_WAKE_SCHEDULE` | `0 9 * * *` | cron (UTC) for the wake check; weekly or monthly for a rarely used app whose cold start is costly |
 | `STANDBY_READINESS_TIMEOUT` | `60s` | how long a request waits for a cold start before 504 |
 | `STANDBY_MAX_REPLICAS` | `1` | `standby-scaling` only |
 | `STANDBY_COOLDOWN` | `300` | seconds idle before scaling to zero; `standby-scaling` only |
 
 Fixed for every app (change the component if one needs otherwise): 10
 concurrent requests per replica, 20 requests held per interceptor during a
-cold start (the rest get 503), wake check daily at 09:00 UTC.
+cold start (the rest get 503).
 
 ## What you get for free
 
@@ -94,7 +95,7 @@ cold start (the rest get 503), wake check daily at 09:00 UTC.
 - Alerts on failed wakes (`KedaHttpWakeTimedOut`, `KedaHttpWakeRejected`,
   `KedaHttpRouteServerErrors`) and on ScaledObject errors
   (`KedaScaledObjectErrors`): they match every route by label.
-- The daily wake check fails its Job (and raises `KubeJobFailed`) if the app no
+- The wake check (daily unless `STANDBY_WAKE_SCHEDULE` says otherwise) fails its Job (and raises `KubeJobFailed`) if the app no
   longer starts.
 - A row on the "Standby apps" Grafana dashboard.
 
