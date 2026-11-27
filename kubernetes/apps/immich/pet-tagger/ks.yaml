@@ -7,6 +7,14 @@ spec:
   interval: 1h
   path: ./kubernetes/apps/immich/pet-tagger/app
   postBuild:
+    # Standby component (kubernetes/components/standby/README.md).
+    substitute:
+      STANDBY_APP: immich-pet-tagger
+      STANDBY_HOSTNAME: immich-pet-tagger   # same host as before
+      STANDBY_PORT: "8000"
+      STANDBY_HEALTH_PATH: /health
+      STANDBY_WAKE_PATH: /api/status        # needs the app; /health is answered at zero
+      STANDBY_READINESS_TIMEOUT: 150s       # cold start is ~40-60 s; room for a slow image pull
     substituteFrom:
       - name: cluster-secrets
         kind: Secret
@@ -14,10 +22,33 @@ spec:
     # Pet-tagger can run with Immich-server unhealthy, but there's no point —
     # every API call would 5xx. Wait for the main app so logs are cleaner.
     - name: immich
+    - name: http-add-on
+      namespace: keda-system
   prune: true
   sourceRef:
     kind: GitRepository
     name: flux-system
     namespace: flux-system
   targetNamespace: immich
-  wait: false
+  wait: true      # gates the ScaledObject below until the InterceptorRoute is Ready
+  timeout: 5m
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: immich-pet-tagger-scaling
+spec:
+  interval: 1h
+  path: ./kubernetes/apps/immich/pet-tagger/scaling
+  postBuild:
+    substitute:
+      STANDBY_APP: immich-pet-tagger
+      STANDBY_COOLDOWN: "1800"   # 30 idle minutes: an enrolment session has pauses
+  dependsOn:
+    - name: immich-pet-tagger
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: immich

@@ -11,4 +11,8 @@ resources:
   - ./service.yaml
   - ./deployment.yaml
   - ./cronjob.yaml
-  - ./httproute.yaml
+
+# InterceptorRoute (with a static /health answer at zero), the HTTPRoute to
+# the interceptor and the daily wake check. The ScaledObject is in ../scaling.
+components:
+  - ../../../../components/standby
