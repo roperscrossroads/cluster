@@ -5,6 +5,9 @@ metadata:
   name: ollama
 spec:
   interval: 1h
+  # A cold start takes 3-4 min (postStart model pull, readiness delay 180 s);
+  # Helm waits for the pod when an upgrade starts one.
+  timeout: 10m
   chart:
     spec:
       chart: ollama
@@ -12,13 +15,25 @@ spec:
       sourceRef:
         kind: HelmRepository
         name: ollama
+  # Standby app (kubernetes/components/standby): KEDA owns the replica count
+  # (0 or 1), so the Deployment must not carry one. The chart always renders
+  # `replicas` unless its own autoscaling is on, which would add a second HPA,
+  # so remove the field here.
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              kind: Deployment
+              name: ollama
+            patch: |
+              - op: remove
+                path: /spec/replicas
   values:
-    # Scaled to 0 on 2026-11-07: LiteLLM's `embed-m3-cluster` (the cluster-side
-    # fallback for `embed-m3` when LM Studio is offline) had zero requests in 30
-    # days, and the pod reserved 4Gi on the tightest node. The model PVC stays,
-    # so set this back to 1 when memtech / an embedding consumer returns (or
-    # put it behind KEDA HTTP scale-to-zero).
-    replicaCount: 0
+    # History: scaled to 0 by hand on 2026-11-07 (LiteLLM's `embed-m3-cluster`
+    # fallback had no requests in 30 days, and the pod reserved 4Gi). Since
+    # 2026-11-27 it is a standby app: a request through ollama-int (LiteLLM
+    # calls it only when LM Studio fails, with a 600 s timeout) wakes it; it
+    # returns to 0 after STANDBY_COOLDOWN idle seconds (../ks.yaml).
 
     image:
       repository: ollama/ollama

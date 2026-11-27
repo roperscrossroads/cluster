@@ -4,5 +4,8 @@ kind: Kustomization
 resources:
   - ./helmrepository.yaml
   - ./helmrelease.yaml
-  - ./httproute.yaml
   - ./networkpolicy.yaml
+# InterceptorRoute (with a static /healthz at zero), the HTTPRoute to the
+# interceptor (same ollama-int host) and the wake check. ScaledObject: ../scaling.
+components:
+  - ../../../../components/standby
