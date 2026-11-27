@@ -1,0 +1,30 @@
+---
+# node_exporter on the three Proxmox hosts under the Talos VMs (infra-new
+# 2a1a559, bead agents-fuch). Exists to see host memory pressure: talos-2
+# froze for ~80 s on 2026-11-26 and the host's journal had a gap, but the
+# hosts exported no metrics to place it (bead agents-25sn).
+#
+# Names resolve through CoreDNS's lab-zone forward. Scrapes need the
+# k8s VLAN -> host :9100 firewall rule (applied from infra-new); until then
+# the targets show down.
+#
+# job="proxmox-hosts", not "node-exporter", so the chart's node alerts (which
+# select job="node-exporter") don't start firing for the hosts; the alerts
+# that should cover them are in prometheusrule-hosts-etcd.yaml.
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: proxmox-hosts
+  labels:
+    release: kube-prometheus-stack
+spec:
+  jobName: proxmox-hosts
+  scrapeInterval: 30s
+  metricsPath: /metrics
+  staticConfigs:
+    - targets: ["mini1.home.arpa:9100"]
+      labels: {host: mini1}
+    - targets: ["mini2.home.arpa:9100"]
+      labels: {host: mini2}
+    - targets: ["mini3.home.arpa:9100"]
+      labels: {host: mini3}
