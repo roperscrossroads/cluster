@@ -12,7 +12,7 @@ releases:
   - name: cloudflare-dns
     namespace: network
     chart: oci://ghcr.io/home-operations/charts-mirror/external-dns
-    version: 1.23.0
+    version: 1.24.0
 
   - name: envoy-gateway
     namespace: network
@@ -22,4 +22,4 @@ releases:
   - name: kube-prometheus-stack
     namespace: observability
     chart: oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack
-    version: 84.5.0
+    version: 94.1.0

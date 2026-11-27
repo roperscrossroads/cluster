@@ -75,6 +75,16 @@ repos:
         language: system
         pass_filenames: false
         files: '^(kubernetes/apps/openshell/agent-sandbox/app/manifest\.yaml|scripts/check-agent-sandbox\.py)$'
+      # Same guard for the vendored prometheus-operator CRDs vs the
+      # kube-prometheus-stack chart tag. Fix a failure with
+      # `python3 scripts/check-prometheus-crds.py --vendor`.
+      # CI: .github/workflows/prometheus-crds-check.yaml.
+      - id: prometheus-crds
+        name: prometheus-operator CRDs track the kube-prometheus-stack tag
+        entry: python3 scripts/check-prometheus-crds.py
+        language: system
+        pass_filenames: false
+        files: '^(kubernetes/apps/observability/kube-prometheus-stack/app/ocirepository\.yaml|kubernetes/apps/observability/kube-prometheus-stack-crds/app/crds/.*\.yaml|scripts/check-prometheus-crds\.py)$'
       # Flux post-build substitution rewrites the BUILT manifests, so a bad
       # ${...} passes `kustomize build` and only corrupts the live object.
       # It broke a backup-retention CronJob for 51 nights and briefly turned

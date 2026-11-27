@@ -118,15 +118,27 @@ jobs:
             --api-versions agents.x-k8s.io/v1beta1 \
             --supply "${RUNNER_TEMP}/stand-in-secrets.yaml" \
             -o github > diff.patch
+          # Comments and outputs are size-limited, so keep the first 60 KB.
+          # A byte cut usually lands mid-line; without a final newline the
+          # closing DIFF_EOF ends up on that line, GitHub can't find the
+          # delimiter, and the step fails ("Matching delimiter not found").
+          # sed '$a\' adds the newline only when it's missing; the note says
+          # where the rest is.
+          size=$(wc -c < diff.patch)
+          head -c 60000 diff.patch | sed '$a\' > diff.short
+          if [ "$size" -gt 60000 ]; then
+            echo "... diff truncated: first 60000 of $size bytes shown; the full diff is in this job's log." >> diff.short
+            cat diff.patch
+          fi
           {
             echo 'diff<<DIFF_EOF'
-            head -c 60000 diff.patch
+            cat diff.short
             echo DIFF_EOF
           } >> "$GITHUB_OUTPUT"
           {
             echo "### Flate Diff"
             echo '```diff'
-            head -c 60000 diff.patch
+            cat diff.short
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
