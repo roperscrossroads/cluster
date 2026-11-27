@@ -18,6 +18,10 @@ spec:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: network
+        # The KEDA HTTP interceptor forwards requests here (standby app).
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: keda-system
       ports:
         - protocol: TCP
           port: 11434

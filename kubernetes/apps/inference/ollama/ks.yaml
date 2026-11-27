@@ -12,7 +12,20 @@ spec:
       namespace: inference
   interval: 1h
   path: ./kubernetes/apps/inference/ollama/app
+  dependsOn:
+    - name: http-add-on
+      namespace: keda-system
   postBuild:
+    # Standby component (kubernetes/components/standby/README.md).
+    substitute:
+      STANDBY_APP: ollama
+      STANDBY_HOSTNAME: ollama-int              # same host LiteLLM already calls
+      STANDBY_PORT: "11434"
+      STANDBY_WAKE_PATH: /api/tags              # needs the app; cheap
+      # Cold start is minutes: the postStart hook re-pulls the model (cached on
+      # the PVC) and the readiness probe waits 180 s. LiteLLM allows 600 s.
+      STANDBY_READINESS_TIMEOUT: 480s
+      STANDBY_WAKE_SCHEDULE: "0 9 * * 4"       # weekly (Thursday 09:00 UTC); 4Gi per wake
     substituteFrom:
       - name: cluster-secrets
         kind: Secret
@@ -22,4 +35,28 @@ spec:
     name: flux-system
     namespace: flux-system
   targetNamespace: inference
-  wait: false
+  wait: true      # gates the ScaledObject below until the InterceptorRoute is Ready
+  timeout: 10m    # the first apply after this change starts one pod (see helmrelease.yaml)
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: ollama-scaling
+  namespace: flux-system
+spec:
+  dependsOn:
+    - name: ollama
+  interval: 1h
+  path: ./kubernetes/apps/inference/ollama/scaling
+  postBuild:
+    substitute:
+      STANDBY_APP: ollama
+      # 15 idle minutes: LiteLLM falls back here only while LM Studio is down,
+      # so requests come in bursts; don't pay the cold start between them.
+      STANDBY_COOLDOWN: "900"
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: inference
