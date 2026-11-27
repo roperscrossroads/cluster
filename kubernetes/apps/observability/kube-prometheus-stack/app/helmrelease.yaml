@@ -62,11 +62,32 @@ spec:
       enabled: false
     # Control-plane jobs we never look at and which carry heavy histogram
     # cardinality. On Talos, controller-manager + scheduler bind to localhost
-    # and aren't scrapable anyway; etcd is co-located with the apiserver pod.
-    # Dropped to shed series. kube-state-metrics, node-exporter and kubelet
-    # stay enabled — the OOM/ZFS/Dockerhub alert rules depend on them.
+    # and aren't scrapable anyway. Dropped to shed series. kube-state-metrics,
+    # node-exporter and kubelet stay enabled — the OOM/ZFS/Dockerhub alert
+    # rules depend on them.
+    #
+    # etcd: scraped since 2026-11-27, after talos-2 (then the etcd leader)
+    # froze for ~80 s and every leader-election holder restarted with no
+    # alert (bead agents-25sn). Talos already serves etcd metrics on :2381
+    # (talos/control-plane/10-cluster.yaml, listen-metrics-urls). Only the
+    # series the chart's etcd rules and our EtcdLeaderChanged alert use are
+    # kept; the gRPC and debugging histograms are dropped.
     kubeEtcd:
-      enabled: false
+      enabled: true
+      endpoints:
+        - 172.16.21.21
+        - 172.16.21.22
+        - 172.16.21.23
+      service:
+        enabled: true
+        port: 2381
+        targetPort: 2381
+      serviceMonitor:
+        scheme: http
+        metricRelabelings:
+          - action: keep
+            sourceLabels: [__name__]
+            regex: etcd_server_(has_leader|is_leader|leader_changes_seen_total|proposals_failed_total|heartbeat_send_failures_total|quota_backend_bytes)|etcd_mvcc_db_total_size_in_(use_in_)?bytes|etcd_disk_(wal_fsync|backend_commit)_duration_seconds_bucket|etcd_network_peer_(round_trip_time_seconds_bucket|sent_failures_total)
     kubeControllerManager:
       enabled: false
     kubeScheduler:

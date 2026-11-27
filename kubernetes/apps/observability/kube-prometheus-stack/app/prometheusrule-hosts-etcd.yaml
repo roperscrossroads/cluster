@@ -1,0 +1,43 @@
+---
+# Alerts for the failure seen on 2026-11-26 (bead agents-25sn): talos-2, the
+# etcd leader, froze ~80 s; etcd elected talos-3 and every component holding
+# a leader-election lease restarted once. Nothing alerted.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: hosts-etcd
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: etcd-leader
+      rules:
+        # Any leadership change. Expected during a rolling Talos or
+        # Kubernetes upgrade (one per control-plane restart); otherwise it
+        # means a member stopped heartbeating (freeze, network, disk).
+        - alert: EtcdLeaderChanged
+          expr: max(increase(etcd_server_leader_changes_seen_total{job="kube-etcd"}[10m])) > 0
+          labels:
+            severity: warning
+          annotations:
+            summary: >-
+              etcd elected a new leader in the last 10 minutes. Outside a node
+              upgrade, check the old leader's VM and its Proxmox host (memory
+              pressure, freezes) and the leader-election restarts that follow.
+    - name: host-memory-pressure
+      rules:
+        # PSI "full" memory stall: time every runnable task was waiting on
+        # memory. 0.05 = 5% of the last 5 minutes. Covers the Proxmox hosts
+        # (job proxmox-hosts) and the Talos VMs (job node-exporter).
+        - alert: HostMemoryStalled
+          expr: >-
+            rate(node_pressure_memory_stalled_seconds_total{job=~"proxmox-hosts|node-exporter"}[5m]) > 0.05
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: >-
+              {{ with $labels.host }}{{ . }}{{ else }}{{ $labels.instance }}{{ end }}
+              spent {{ $value | humanizePercentage }} of the last 5 minutes fully
+              stalled on memory. A Proxmox host here can freeze its VMs (talos-2,
+              2026-11-26).
