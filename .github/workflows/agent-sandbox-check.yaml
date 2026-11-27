@@ -1,0 +1,39 @@
+---
+# Backstop for the vendored agent-sandbox release manifest (see
+# scripts/check-agent-sandbox.py and the .pre-commit-config.yaml hook): fails if
+# the controller image tag was bumped without re-vendoring the CRD and RBAC.
+# Pure filesystem derivation, github-hosted.
+name: "Agent Sandbox Check"
+
+on:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "kubernetes/apps/openshell/agent-sandbox/app/manifest.yaml"
+      - "scripts/check-agent-sandbox.py"
+  push:
+    branches: ["main"]
+    paths:
+      - "kubernetes/apps/openshell/agent-sandbox/app/manifest.yaml"
+      - "scripts/check-agent-sandbox.py"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: agent-sandbox manifest in sync
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: manifest matches controller tag
+        run: python3 scripts/check-agent-sandbox.py
